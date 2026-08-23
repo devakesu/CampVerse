@@ -1,0 +1,13 @@
+:80 {
+    handle_path /ws/* {
+        reverse_proxy localhost:8080
+    }
+
+    handle_path /api/* {
+        reverse_proxy localhost:8000
+    }
+
+    handle {
+        respond "Campverse API Gateway Online" 200
+    }
+}

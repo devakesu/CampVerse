@@ -1,0 +1,253 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# ==========================================
+# 1. Go Core & Build Artifacts
+# ==========================================
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binaries and profiles
+*.test
+*.out
+profile.out
+coverage.out
+coverage.txt
+coverage.html
+
+# Go workspace (developer-local)
+go.work
+go.work.sum
+
+# Go vendor directory (uncomment if not using vendored modules)
+# vendor/
+
+# ==========================================
+# 2. Deno Runtime & Dependencies
+# ==========================================
+# Deno cache & vendor
+.deno/
+deno_dir/
+npm/
+
+# Node modules / npm artifacts (if using npm: specifiers or npm tooling)
+node_modules/
+.npm/
+package-lock.json
+
+# ==========================================
+# 3. IDEs and Code Editors
+# ==========================================
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+*.code-workspace
+
+# Android Studio / IntelliJ / PyCharm / GoLand
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Emacs / Vim / Other Editors
+*~
+*.swp
+*.swo
+.history/
+.atom/
+.swiftpm/
+
+# ==========================================
+# 4. Environment Variables & Secrets (CRITICAL)
+# ==========================================
+.env
+.env.local
+.env.*
+!.env.example
+*.env
+secrets.json
+*.pem
+*.key
+*.cer
+*.crt
+.certificates/
+
+# ==========================================
+# 5. Testing, Linting, & Code Coverage
+# ==========================================
+coverage/
+.coverage
+htmlcov/
+.nyc_output/
+.eslintcache
+.golangci-lint/
+
+# ==========================================
+# 6. Database & Local Storage Caches / Supabase
+# ==========================================
+*.db
+*.sqlite3
+*.sqlite
+instance/
+.webassets-cache
+
+# Supabase Local
+supabase/.temp/
+supabase/.branches/
+.env.keys
+
+# ==========================================
+# 7. OS Generated / Temp Files
+# ==========================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+
+# ==========================================
+# 8. Project Specific Overrides & AI Workspaces
+# ==========================================
+*.log
+temp/
+.infisical.json
+.github/prompts
+.github/skills
+.agent*
+.claude
+.codebuddy
+.codex
+.continue
+.cursor
+.gemini
+.kris
+.mem
+.aider
+.aiderignore
+.cursorignore
+.trae
+.opencode
+.qoder
+.roo
+.windsurf
+.kiro
+
+# impeccable-ignore-start
+# Ephemeral output, runtime state, and per-dev overrides.
+# Unanchored: .impeccable may sit at the repo root or under a nested
+# workspace (apps/web/.impeccable/...); anchored patterns would miss it.
+# Shared artifacts stay tracked: config.json, live/config.json,
+# design.json, critique/*.md.
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/*.png
+.impeccable/live/server.json
+.impeccable/live/sessions/
+.impeccable/live/previews/
+.impeccable/live/annotations/
+.impeccable/live/cache/
+.impeccable/live/manual-edit-apply-transaction.json
+.impeccable/live/manual-edit-events.jsonl
+.impeccable/live/manual-edit-evidence/
+.impeccable/live/pending-manual-edits.json
+.impeccable/live/deferred-svelte-component-accepts.json
+.impeccable/live/*.png
+# impeccable-ignore-end
+
+# ==========================================
+# 9. Flutter & Client Architecture (campverse_client & mobile)
+# ==========================================
+# Flutter / Dart tooling artifacts (Root and subprojects)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+scratch/
+.widget_preview/
+migrate_working_dir/
+**/doc/api/
+
+# Nested client paths (campverse_client / mobile)
+campverse_client/.dart_tool/
+campverse_client/.flutter-plugins
+campverse_client/.flutter-plugins-dependencies
+campverse_client/.packages
+campverse_client/.pub-cache/
+campverse_client/.pub/
+campverse_client/build/
+campverse_client/*.iml
+campverse_client/${workspaceFolder}*/
+campverse_client/$*
+campverse_client/scratch/
+
+# Core Application Configuration & Secrets
+**/app_secrets.dart
+**/firebase.json
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Symbolication & Obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android native tooling overrides
+.gradle/
+local.properties
+key.properties
+.kotlin/
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+**/android/app/Flutter/Generated.xcconfig
+**/android/app/src/main/res/values/strings.xml
+**/android/app/src/main/res/raw/app_config.json
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/**/*.jks
+**/android/**/*.keystore
+**/android/**/*.p12
+
+# iOS & macOS native tooling overrides
+**/ios/.symlinks/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/DerivedData/
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+
+# Linux & Windows native ephemeral builds
+**/linux/flutter/ephemeral/
+**/windows/flutter/ephemeral/
+
+# Xcode user state
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3

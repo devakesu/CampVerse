@@ -1,0 +1,34 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# Top-most EditorConfig file
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.dart]
+indent_size = 2
+max_line_length = 120
+
+[*.go]
+indent_style = tab
+indent_size = 4
+
+[*.{ts,tsx,js,jsx}]
+indent_size = 2
+max_line_length = 100
+
+[*.sql]
+indent_size = 4
+max_line_length = 120
+
+[*.{json,yaml,yml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
