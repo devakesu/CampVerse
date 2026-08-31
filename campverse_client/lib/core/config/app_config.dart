@@ -23,4 +23,14 @@ class AppConfig {
 
   /// Application human-readable display name.
   static const String appName = 'CampVerse';
+
+  /// Application release version string from environment (e.g. APP_VERSION
+  /// or VERSION).
+  static const String appVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: String.fromEnvironment(
+      'VERSION',
+      defaultValue: 'v1.0.0',
+    ),
+  );
 }

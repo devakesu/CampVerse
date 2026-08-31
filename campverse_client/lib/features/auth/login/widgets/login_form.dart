@@ -1,6 +1,7 @@
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Form handling institutional email/username and password entry.
@@ -33,6 +34,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
+    TextInput.finishAutofillContext();
+
     await ref.read(authStateProvider.notifier).signInWithPassword(
           email: email,
           password: password,
@@ -43,63 +46,71 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Institutional Email / Username',
-              hintText: 'e.g. user@campus.ac.in',
-              prefixIcon: Icon(
-                Icons.alternate_email_rounded,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter your email or username';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _submit(),
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(
-                Icons.lock_outline_rounded,
-                color: AppColors.textSecondary,
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
+    return AutofillGroup(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [
+                AutofillHints.username,
+                AutofillHints.email,
+              ],
+              decoration: const InputDecoration(
+                labelText: 'Institutional Email / Username',
+                hintText: 'e.g. user@campus.ac.in',
+                prefixIcon: Icon(
+                  Icons.alternate_email_rounded,
                   color: AppColors.textSecondary,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
               ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your email or username';
+                }
+                return null;
+              },
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your password';
-              }
-              return null;
-            },
-          ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
+              autofillHints: const [
+                AutofillHints.password,
+              ],
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(
+                  Icons.lock_outline_rounded,
+                  color: AppColors.textSecondary,
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: AppColors.textSecondary,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your password';
+                }
+                return null;
+              },
+            ),
           const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerRight,
@@ -145,6 +156,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

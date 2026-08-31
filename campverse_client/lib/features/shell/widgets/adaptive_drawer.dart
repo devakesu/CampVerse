@@ -3,6 +3,7 @@ import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/providers/theme_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
+import 'package:campverse/core/widgets/brand_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -49,44 +50,7 @@ class AdaptiveDrawer extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.school_rounded,
-                          size: 24,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'CampVerse',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          Text(
-                            'Campus Ecosystem',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondaryOf(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  const BrandLogo.wide(height: 44),
                   const SizedBox(height: 18),
                   Text(
                     userName,

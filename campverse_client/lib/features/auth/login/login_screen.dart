@@ -1,11 +1,14 @@
+import 'package:campverse/core/config/app_config.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/providers/theme_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:campverse/core/utils/responsive_layout.dart';
+import 'package:campverse/core/widgets/brand_logo.dart';
 import 'package:campverse/features/auth/login/widgets/login_form.dart';
 import 'package:campverse/features/auth/login/widgets/passkey_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Redesigned adaptive login screen supporting credentials and passkeys.
 class LoginScreen extends ConsumerWidget {
@@ -93,53 +96,7 @@ class LoginScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Brand Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.school_rounded,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'CampVerse',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                              ),
-                        ),
-                        const Text(
-                          'Campus Operating Ecosystem',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                const BrandLogo.wide(height: 152),
 
                 // Center Value Prop & Highlights
                 Column(
@@ -147,9 +104,7 @@ class LoginScreen extends ConsumerWidget {
                   children: [
                     Text(
                       'Unified Campus Life,\nAcademics & Governance',
-                      style: Theme.of(context)
-                          .textTheme
-                          .displayMedium
+                      style: Theme.of(context).textTheme.displayMedium
                           ?.copyWith(
                             fontWeight: FontWeight.w800,
                             height: 1.2,
@@ -173,19 +128,19 @@ class LoginScreen extends ConsumerWidget {
                     _buildFeatureItem(
                       context,
                       icon: Icons.hub_rounded,
-                      title: '8 Dedicated Role Workspaces',
+                      title: 'Dedicated Role Workspaces',
                       description:
-                          'Tailored dashboards for Super Admin, Principals, '
-                          'HODs, Faculty, Unions, Clubs, and Students.',
+                          'Tailored dashboards for Principals, HODs, '
+                          'Faculty, Unions, Clubs, and Students.',
                     ),
                     const SizedBox(height: 16),
                     _buildFeatureItem(
                       context,
                       icon: Icons.shield_rounded,
-                      title: 'Hardware Passkeys & MFA',
+                      title: 'Zero-Knowledge Security & Privacy',
                       description:
-                          'Enterprise WebAuthn biometrics, TOTP '
-                          'verification, and Row-Level Security isolation.',
+                          'Field-level encryption, Tamper-proof passes, '
+                          'biometric MFA, cryptographically signed records.',
                     ),
                     const SizedBox(height: 16),
                     _buildFeatureItem(
@@ -193,30 +148,14 @@ class LoginScreen extends ConsumerWidget {
                       icon: Icons.devices_rounded,
                       title: 'Adaptive Multiplatform Experience',
                       description:
-                          'Consistent high-density operations across desktop '
-                          'web, Linux, Windows, macOS, iOS, and Android.',
+                          'Consistent high-density operations across web, '
+                          'Linux, Windows, macOS, Android & iOS.',
                     ),
                   ],
                 ),
 
-                // Footer legal / security info
-                Row(
-                  children: [
-                    Icon(
-                      Icons.lock_clock_rounded,
-                      size: 16,
-                      color: AppColors.textMutedOf(context),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'CampVerse Enterprise OS v1.0 • AES-256 FLE Enforced',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMutedOf(context),
-                      ),
-                    ),
-                  ],
-                ),
+                // Footer attribution & links
+                _buildDesktopFooter(context),
               ],
             ),
           ),
@@ -251,41 +190,9 @@ class LoginScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Mobile Brand Header
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.school_rounded,
-                    size: 32,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'CampVerse',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Campus Operating Ecosystem',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondaryOf(context),
-                  ),
+                const BrandLogo.wide(
+                  height: 56,
+                  alignment: Alignment.center,
                 ),
                 const SizedBox(height: 28),
 
@@ -293,26 +200,8 @@ class LoginScreen extends ConsumerWidget {
                 _buildAuthCard(context, ref),
 
                 const SizedBox(height: 24),
-                // Security indicator footer
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.shield_outlined,
-                      size: 15,
-                      color: AppColors.textMutedOf(context),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Secured with Passkey & Role Guard',
-                      style: TextStyle(
-                        color: AppColors.textMutedOf(context),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+                // Footer attribution & links
+                _buildMobileFooter(context),
               ],
             ),
           ),
@@ -348,9 +237,9 @@ class LoginScreen extends ConsumerWidget {
           Text(
             'Sign In',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22,
-                ),
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -397,7 +286,7 @@ class LoginScreen extends ConsumerWidget {
             const SizedBox(height: 20),
           ],
 
-          const LoginForm(),
+          const PasskeyButton(),
 
           const SizedBox(height: 20),
           Row(
@@ -421,8 +310,10 @@ class LoginScreen extends ConsumerWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 20),
-          const PasskeyButton(),
+
+          const LoginForm(),
         ],
       ),
     );
@@ -469,6 +360,259 @@ class LoginScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildVersionBadge(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.primaryOf(context).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.primaryOf(context).withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.sell_outlined,
+            size: 11,
+            color: AppColors.primaryOf(context),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'v${AppConfig.appVersion}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryOf(context),
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeparator(BuildContext context) {
+    return Text(
+      '•',
+      style: TextStyle(
+        fontSize: 12,
+        color: AppColors.textMutedOf(context).withValues(alpha: 0.5),
+      ),
+    );
+  }
+
+  Widget _buildMadeWithSection(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Made with ',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textMutedOf(context),
+          ),
+        ),
+        const Icon(
+          Icons.favorite_rounded,
+          size: 14,
+          color: Colors.redAccent,
+        ),
+        Text(
+          ' by ',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textMutedOf(context),
+          ),
+        ),
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () async {
+              final uri = Uri.parse('https://devakesu.com');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Text(
+              '@devakesu',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryOf(context),
+                decoration: TextDecoration.underline,
+                decorationColor: AppColors.primaryOf(context)
+                    .withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterLink(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String placeholderDialogTitle,
+  }) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () async {
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              backgroundColor: AppColors.surfaceOf(ctx),
+              title: Row(
+                children: [
+                  Icon(icon, size: 20, color: AppColors.primaryOf(ctx)),
+                  const SizedBox(width: 8),
+                  Text(
+                    placeholderDialogTitle,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimaryOf(ctx),
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                '$placeholderDialogTitle documentation is currently being '
+                'finalized. Please check back in an upcoming release.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppColors.textSecondaryOf(ctx),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 13,
+                color: AppColors.textMutedOf(context),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textMutedOf(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopFooter(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildVersionBadge(context),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildFooterLink(
+                  context,
+                  icon: Icons.description_outlined,
+                  label: 'Terms',
+                  placeholderDialogTitle: 'Terms of Service',
+                ),
+                const SizedBox(width: 4),
+                _buildSeparator(context),
+                const SizedBox(width: 4),
+                _buildFooterLink(
+                  context,
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacy',
+                  placeholderDialogTitle: 'Privacy Policy',
+                ),
+                const SizedBox(width: 4),
+                _buildSeparator(context),
+                const SizedBox(width: 4),
+                _buildFooterLink(
+                  context,
+                  icon: Icons.support_agent_rounded,
+                  label: 'Contact Us',
+                  placeholderDialogTitle: 'Contact Support',
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _buildMadeWithSection(context),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileFooter(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildVersionBadge(context),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            _buildFooterLink(
+              context,
+              icon: Icons.description_outlined,
+              label: 'Terms',
+              placeholderDialogTitle: 'Terms of Service',
+            ),
+            _buildSeparator(context),
+            _buildFooterLink(
+              context,
+              icon: Icons.privacy_tip_outlined,
+              label: 'Privacy',
+              placeholderDialogTitle: 'Privacy Policy',
+            ),
+            _buildSeparator(context),
+            _buildFooterLink(
+              context,
+              icon: Icons.support_agent_rounded,
+              label: 'Contact Us',
+              placeholderDialogTitle: 'Contact Support',
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _buildMadeWithSection(context),
       ],
     );
   }

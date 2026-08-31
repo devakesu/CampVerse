@@ -3,6 +3,7 @@ import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/providers/theme_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
+import 'package:campverse/core/widgets/brand_logo.dart';
 import 'package:campverse/features/shell/base_role_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,67 +91,9 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                   : MainAxisAlignment.spaceBetween,
               children: [
                 if (!widget.isCollapsed) ...[
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.school_rounded,
-                          size: 20,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'CampVerse',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
-                                  letterSpacing: -0.3,
-                                ),
-                          ),
-                          Text(
-                            'Campus OS',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondaryOf(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  const BrandLogo.wide(height: 42),
                 ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.school_rounded,
-                      size: 20,
-                      color: Colors.white,
-                    ),
-                  ),
+                  const BrandLogo.square(size: 40),
                 ],
                 if (widget.onToggleCollapse != null && !widget.isCollapsed)
                   IconButton(
