@@ -1,7 +1,12 @@
-import 'dart:async';
 import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
+import 'package:campverse/core/providers/theme_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
+import 'package:campverse/core/utils/responsive_layout.dart';
+import 'package:campverse/features/shell/widgets/adaptive_drawer.dart';
+import 'package:campverse/features/shell/widgets/desktop_sidebar.dart';
+import 'package:campverse/features/shell/widgets/desktop_top_bar.dart';
+import 'package:campverse/features/shell/widgets/floating_glass_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,7 +33,8 @@ class NavDestinationItem {
   final Widget body;
 }
 
-/// Generic base shell providing app bar with role badge and switcher.
+/// Adaptive base shell providing multiplatform desktop/mobile workspace
+/// layout.
 class BaseRoleShell extends ConsumerStatefulWidget {
   /// Default constructor for BaseRoleShell.
   const BaseRoleShell({
@@ -53,47 +59,117 @@ class BaseRoleShell extends ConsumerStatefulWidget {
 
 class _BaseRoleShellState extends ConsumerState<BaseRoleShell> {
   int _selectedIndex = 0;
+  bool _isSidebarCollapsed = false;
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
-    final hasMultipleRoles = authState.hasMultipleRoles;
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+
+    if (isDesktop) {
+      return _buildDesktopLayout(context);
+    } else {
+      return _buildMobileLayout(context);
+    }
+  }
+
+  /// Builds the desktop multiplatform layout with permanent sidebar & top bar.
+  Widget _buildDesktopLayout(BuildContext context) {
+    final currentTab = widget.destinations.isNotEmpty
+        ? widget.destinations[_selectedIndex]
+        : null;
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundOf(context),
+      body: Row(
+        children: [
+          DesktopSidebar(
+            role: widget.role,
+            destinations: widget.destinations,
+            selectedIndex: _selectedIndex,
+            isCollapsed: _isSidebarCollapsed,
+            onToggleCollapse: () {
+              setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
+            },
+            onDestinationSelected: (index) {
+              setState(() => _selectedIndex = index);
+            },
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                DesktopTopBar(
+                  role: widget.role,
+                  pageTitle: currentTab?.label ?? 'Workspace',
+                  customActions: widget.customActions,
+                ),
+                Expanded(
+                  child: currentTab != null
+                      ? AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: KeyedSubtree(
+                            key: ValueKey(_selectedIndex),
+                            child: currentTab.body,
+                          ),
+                        )
+                      : const Center(child: Text('No tabs configured')),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the mobile layout with floating glass bottom bar & drawer sidebar.
+  Widget _buildMobileLayout(BuildContext context) {
+    final authState = ref.watch(authStateProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = AppColors.isDark(context);
+    final roleColor = AppColors.roleColorOf(context, widget.role);
+
+    final currentTab = widget.destinations.isNotEmpty
+        ? widget.destinations[_selectedIndex]
+        : null;
+
+    return Scaffold(
+      backgroundColor: AppColors.backgroundOf(context),
+      drawer: AdaptiveDrawer(role: widget.role),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.surfaceOf(context),
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: widget.role.badgeColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: roleColor.withValues(alpha: isDark ? 0.18 : 0.12),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 widget.role.icon,
-                color: widget.role.badgeColor,
-                size: 20,
+                color: roleColor,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   widget.role.displayName,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: AppColors.textPrimaryOf(context),
                   ),
                 ),
                 Text(
-                  'CampVerse Workspace',
+                  currentTab?.label ?? 'Workspace',
                   style: TextStyle(
                     fontSize: 11,
-                    color: widget.role.badgeColor,
+                    color: roleColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -103,112 +179,71 @@ class _BaseRoleShellState extends ConsumerState<BaseRoleShell> {
         ),
         actions: [
           ...widget.customActions,
-          if (hasMultipleRoles)
-            PopupMenuButton<AppRole>(
-              tooltip: 'Switch Workspace Role',
-              icon: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.surfaceBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.swap_horiz_rounded,
-                      size: 16,
-                      color: widget.role.badgeColor,
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Switch Role',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              onSelected: (selectedRole) {
-                if (selectedRole != widget.role) {
-                  unawaited(
-                    ref
-                        .read(authStateProvider.notifier)
-                        .switchRole(selectedRole),
-                  );
-                }
-              },
-              itemBuilder: (context) {
-                return authState.availableRoles.map((r) {
-                  final isCurrent = r == widget.role;
-                  return PopupMenuItem<AppRole>(
-                    value: r,
-                    child: Row(
-                      children: [
-                        Icon(r.icon, color: r.badgeColor, size: 18),
-                        const SizedBox(width: 10),
-                        Text(
-                          r.displayName,
-                          style: TextStyle(
-                            fontWeight:
-                                isCurrent ? FontWeight.w700 : FontWeight.w500,
-                            color: isCurrent
-                                ? r.badgeColor
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                        if (isCurrent) ...[
-                          const Spacer(),
-                          Icon(
-                            Icons.check_rounded,
-                            color: r.badgeColor,
-                            size: 16,
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                }).toList();
-              },
-            ),
           IconButton(
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: AppColors.textSecondary,
+            icon: Icon(
+              themeMode == ThemeMode.dark
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_rounded,
+              size: 20,
+              color: AppColors.textSecondaryOf(context),
             ),
             onPressed: () {
-              unawaited(ref.read(authStateProvider.notifier).signOut());
+              ref.read(themeModeProvider.notifier).toggleTheme();
             },
-            tooltip: 'Sign Out',
+            tooltip: 'Toggle Theme',
           ),
-          const SizedBox(width: 8),
+          if (authState.hasMultipleRoles)
+            IconButton(
+              icon: Icon(
+                Icons.swap_horiz_rounded,
+                color: roleColor,
+                size: 22,
+              ),
+              tooltip: 'Switch Workspace Role',
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+            ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: widget.destinations.isEmpty
-          ? const Center(child: Text('No tabs configured'))
-          : widget.destinations[_selectedIndex].body,
-      bottomNavigationBar: widget.destinations.length > 1
-          ? NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (index) {
-                setState(() => _selectedIndex = index);
-              },
-              destinations: widget.destinations.map((d) {
-                return NavigationDestination(
-                  icon: Icon(d.icon),
-                  selectedIcon: Icon(d.selectedIcon),
-                  label: d.label,
-                );
-              }).toList(),
-            )
-          : null,
+      body: Stack(
+        children: [
+          // Content Area with bottom inset padding for floating bar
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: widget.destinations.length > 1 ? 80 : 0,
+              ),
+              child: currentTab != null
+                  ? currentTab.body
+                  : const Center(child: Text('No tabs configured')),
+            ),
+          ),
+
+          // Floating Glass Bottom Navigation Bar
+          if (widget.destinations.length > 1)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: FloatingGlassBottomBar(
+                accentColor: roleColor,
+                selectedIndex: _selectedIndex,
+                onTap: (index) {
+                  setState(() => _selectedIndex = index);
+                },
+                tabs: widget.destinations.map((d) {
+                  return FloatingNavTab(
+                    label: d.label,
+                    icon: d.icon,
+                    selectedIcon: d.selectedIcon,
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

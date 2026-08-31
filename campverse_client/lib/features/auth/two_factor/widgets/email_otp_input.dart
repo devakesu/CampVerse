@@ -80,15 +80,15 @@ class _EmailOtpInputState extends ConsumerState<EmailOtpInput> {
     final defaultPinTheme = PinTheme(
       width: 52,
       height: 56,
-      textStyle: const TextStyle(
+      textStyle: TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
+        color: AppColors.textPrimaryOf(context),
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: AppColors.surfaceElevatedOf(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
     );
 
@@ -97,7 +97,10 @@ class _EmailOtpInputState extends ConsumerState<EmailOtpInput> {
       children: [
         Text(
           'A 6-digit code has been sent to $destination.',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: AppColors.textSecondaryOf(context),
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 20),
         Center(
@@ -114,15 +117,18 @@ class _EmailOtpInputState extends ConsumerState<EmailOtpInput> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               "Didn't receive code? ",
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(
+                color: AppColors.textSecondaryOf(context),
+                fontSize: 13,
+              ),
             ),
             if (_countdown > 0)
               Text(
                 'Resend in ${_countdown}s',
-                style: const TextStyle(
-                  color: AppColors.textMuted,
+                style: TextStyle(
+                  color: AppColors.textMutedOf(context),
                   fontSize: 13,
                 ),
               )
@@ -139,7 +145,7 @@ class _EmailOtpInputState extends ConsumerState<EmailOtpInput> {
                 child: const Text(
                   'Resend Code',
                   style: TextStyle(
-                    color: AppColors.primaryLight,
+                    color: AppColors.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

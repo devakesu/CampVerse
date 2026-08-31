@@ -27,13 +27,14 @@ class RoleDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final roleColor = role.badgeColor;
+    final roleColor = AppColors.roleColorOf(context, role);
+    final isDark = AppColors.isDark(context);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: 880),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -41,25 +42,29 @@ class RoleDashboardView extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      roleColor.withValues(alpha: 0.2),
-                      AppColors.surface,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AppColors.surfaceOf(context),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: roleColor.withValues(alpha: 0.3),
+                    color: roleColor.withValues(alpha: isDark ? 0.35 : 0.2),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.25)
+                          : Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: roleColor.withValues(alpha: 0.2),
+                        color: roleColor.withValues(
+                          alpha: isDark ? 0.2 : 0.12,
+                        ),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(role.icon, size: 36, color: roleColor),
@@ -71,18 +76,19 @@ class RoleDashboardView extends StatelessWidget {
                         children: [
                           Text(
                             tabTitle,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                              color: AppColors.textPrimaryOf(context),
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             description,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: AppColors.textSecondary,
+                              color: AppColors.textSecondaryOf(context),
                             ),
                           ),
                         ],
@@ -91,7 +97,7 @@ class RoleDashboardView extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               Text(
                 'Available Management Modules',
@@ -112,16 +118,27 @@ class RoleDashboardView extends StatelessWidget {
                       vertical: 16,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: AppColors.surfaceOf(context),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.surfaceBorder),
+                      border: Border.all(color: AppColors.borderOf(context)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isDark
+                              ? Colors.black.withValues(alpha: 0.15)
+                              : Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: roleColor.withValues(alpha: 0.1),
+                            color: roleColor.withValues(
+                              alpha: isDark ? 0.18 : 0.1,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -134,10 +151,10 @@ class RoleDashboardView extends StatelessWidget {
                         Expanded(
                           child: Text(
                             feature,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimaryOf(context),
                             ),
                           ),
                         ),

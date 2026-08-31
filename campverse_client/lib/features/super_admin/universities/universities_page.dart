@@ -29,6 +29,7 @@ class _UniversitiesPageState extends ConsumerState<UniversitiesPage> {
     final universitiesAsync = ref.watch(universitiesProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundOf(context),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -46,13 +47,14 @@ class _UniversitiesPageState extends ConsumerState<UniversitiesPage> {
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimaryOf(context),
                               ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Manage curriculum authorities and multi-campus schemes.',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: AppColors.textSecondaryOf(context),
                         fontSize: 13,
                       ),
                     ),
@@ -81,6 +83,7 @@ class _UniversitiesPageState extends ConsumerState<UniversitiesPage> {
             TextField(
               controller: _searchController,
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
+              style: TextStyle(color: AppColors.textPrimaryOf(context)),
               decoration: InputDecoration(
                 hintText: 'Search by university name, state, or slug...',
                 prefixIcon: const Icon(Icons.search_rounded),
@@ -119,15 +122,16 @@ class _UniversitiesPageState extends ConsumerState<UniversitiesPage> {
                           Icon(
                             Icons.school_outlined,
                             size: 48,
-                            color: AppColors.textMuted.withValues(alpha: 0.5),
+                            color: AppColors.textMutedOf(context)
+                                .withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             _searchQuery.isEmpty
                                 ? 'No universities registered yet.'
                                 : 'No matching universities found.',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: AppColors.textSecondaryOf(context),
                               fontSize: 15,
                             ),
                           ),

@@ -1,3 +1,4 @@
+import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/models/institute.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -19,12 +20,24 @@ class InstituteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final principalColor = AppColors.roleColorOf(context, AppRole.principal);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.15)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: InkWell(
         onTap: onTap,
@@ -37,12 +50,14 @@ class InstituteCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.rolePrincipal.withValues(alpha: 0.12),
+                  color: principalColor.withValues(
+                    alpha: isDark ? 0.2 : 0.1,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.domain_rounded,
-                  color: AppColors.rolePrincipal,
+                  color: principalColor,
                   size: 24,
                 ),
               ),
@@ -56,10 +71,10 @@ class InstituteCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             institute.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: AppColors.textPrimaryOf(context),
                             ),
                           ),
                         ),
@@ -69,16 +84,17 @@ class InstituteCard extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceElevated,
+                            color: AppColors.surfaceElevatedOf(context),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.surfaceBorder),
+                            border:
+                                Border.all(color: AppColors.borderOf(context)),
                           ),
                           child: Text(
                             institute.slug,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.rolePrincipal,
+                              color: principalColor,
                             ),
                           ),
                         ),
@@ -89,34 +105,34 @@ class InstituteCard extends StatelessWidget {
                       children: [
                         if (institute.universityName != null &&
                             institute.universityName!.isNotEmpty) ...[
-                          const Icon(
+                          Icon(
                             Icons.school_outlined,
                             size: 14,
-                            color: AppColors.textSecondary,
+                            color: AppColors.textSecondaryOf(context),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             institute.universityName!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: AppColors.textSecondary,
+                              color: AppColors.textSecondaryOf(context),
                             ),
                           ),
                           const SizedBox(width: 12),
                         ],
                         if (institute.domain != null &&
                             institute.domain!.isNotEmpty) ...[
-                          const Icon(
+                          Icon(
                             Icons.public_rounded,
                             size: 14,
-                            color: AppColors.textMuted,
+                            color: AppColors.textMutedOf(context),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             institute.domain!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: AppColors.primaryLight,
+                              color: AppColors.primaryOf(context),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -128,7 +144,9 @@ class InstituteCard extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.15),
+                              color: AppColors.accent.withValues(
+                                alpha: isDark ? 0.2 : 0.12,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(

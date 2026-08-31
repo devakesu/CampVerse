@@ -1,4 +1,5 @@
 import 'package:campverse/core/config/app_config.dart';
+import 'package:campverse/core/providers/theme_provider.dart';
 import 'package:campverse/core/router/app_router.dart';
 import 'package:campverse/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -12,11 +13,14 @@ class CampVerseApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

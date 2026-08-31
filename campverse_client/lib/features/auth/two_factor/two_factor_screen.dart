@@ -22,15 +22,18 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final isDark = AppColors.isDark(context);
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_rounded,
-            color: AppColors.textPrimary,
+            color: AppColors.textPrimaryOf(context),
           ),
           onPressed: () {
             unawaited(ref.read(authStateProvider.notifier).signOut());
@@ -50,16 +53,20 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
+                      color: AppColors.primary.withValues(
+                        alpha: isDark ? 0.18 : 0.12,
+                      ),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3),
+                        color: AppColors.primary.withValues(
+                          alpha: isDark ? 0.35 : 0.25,
+                        ),
                       ),
                     ),
                     child: const Icon(
                       Icons.security_rounded,
                       size: 36,
-                      color: AppColors.primaryLight,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -68,15 +75,17 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   'Two-Factor Authentication',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: AppColors.textPrimaryOf(context),
                       ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Verify your identity to prevent unauthorized role access.',
+                Text(
+                  'Verify your identity to authenticate this session.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: AppColors.textSecondaryOf(context),
                     fontSize: 14,
                   ),
                 ),
@@ -87,10 +96,10 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.12),
+                      color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppColors.error.withValues(alpha: 0.3),
+                        color: AppColors.error.withValues(alpha: 0.35),
                       ),
                     ),
                     child: Row(
@@ -123,15 +132,24 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                     setState(() => _selectedMethod = method);
                   },
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Active Method Form Card
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: AppColors.surfaceOf(context),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.surfaceBorder),
+                    border: Border.all(color: AppColors.borderOf(context)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark
+                            ? Colors.black.withValues(alpha: 0.25)
+                            : Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
                   child: _selectedMethod == MfaMethod.totp
                       ? const TotpInput()

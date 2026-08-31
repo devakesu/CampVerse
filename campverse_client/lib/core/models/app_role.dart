@@ -107,27 +107,11 @@ enum AppRole {
     return fromDbString(claim);
   }
 
-  /// Color accent for role badges and UI elements.
-  Color get badgeColor {
-    switch (this) {
-      case AppRole.superAdmin:
-        return AppColors.roleSuperAdmin;
-      case AppRole.principal:
-        return AppColors.rolePrincipal;
-      case AppRole.officeAdmin:
-        return AppColors.roleOfficeAdmin;
-      case AppRole.hod:
-        return AppColors.roleHod;
-      case AppRole.faculty:
-        return AppColors.roleFaculty;
-      case AppRole.studentUnion:
-        return AppColors.roleStudentUnion;
-      case AppRole.clubAdmin:
-        return AppColors.roleClubAdmin;
-      case AppRole.student:
-        return AppColors.roleStudent;
-    }
-  }
+  /// Color accent for role badges and UI elements (static default).
+  Color get badgeColor => AppColors.roleSuperAdmin; // Fallback
+
+  /// Context-aware color accent adapting between light and dark themes.
+  Color colorOf(BuildContext context) => AppColors.roleColorOf(context, this);
 
   /// Root route prefix for this role workspace.
   String get routeRoot {

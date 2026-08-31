@@ -78,10 +78,18 @@ class _AddInstitutePageState extends ConsumerState<AddInstitutePage> {
   @override
   Widget build(BuildContext context) {
     final universitiesAsync = ref.watch(universitiesProvider);
+    final isDark = AppColors.isDark(context);
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(
-        title: const Text('Add Institute Campus'),
+        title: Text(
+          'Add Institute Campus',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimaryOf(context),
+          ),
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -91,35 +99,45 @@ class _AddInstitutePageState extends ConsumerState<AddInstitutePage> {
             child: Container(
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: AppColors.surfaceOf(context),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.surfaceBorder),
+                border: Border.all(color: AppColors.borderOf(context)),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
+                    Text(
                       'Institute Tenant Details',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: AppColors.textPrimaryOf(context),
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Onboard a college campus tenant. Each institute has '
                       'its own isolated database partition and portal.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: AppColors.textSecondaryOf(context),
                       ),
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: _nameController,
+                      style: TextStyle(color: AppColors.textPrimaryOf(context)),
                       decoration: const InputDecoration(
                         labelText: 'Institute Name *',
                         hintText: 'e.g. Govt. Model Engineering College',
@@ -139,6 +157,9 @@ class _AddInstitutePageState extends ConsumerState<AddInstitutePage> {
                           child: TextFormField(
                             controller: _slugController,
                             textCapitalization: TextCapitalization.characters,
+                            style: TextStyle(
+                              color: AppColors.textPrimaryOf(context),
+                            ),
                             decoration: const InputDecoration(
                               labelText: 'Slug / Code *',
                               hintText: 'e.g. MEC',
@@ -158,6 +179,9 @@ class _AddInstitutePageState extends ConsumerState<AddInstitutePage> {
                           child: TextFormField(
                             controller: _domainController,
                             keyboardType: TextInputType.url,
+                            style: TextStyle(
+                              color: AppColors.textPrimaryOf(context),
+                            ),
                             decoration: const InputDecoration(
                               labelText: 'Campus Domain',
                               hintText: 'e.g. mec.ac.in',
@@ -174,15 +198,28 @@ class _AddInstitutePageState extends ConsumerState<AddInstitutePage> {
                       data: (unis) {
                         return DropdownButtonFormField<String>(
                           initialValue: _selectedUniversityId,
+                          style: TextStyle(
+                            color: AppColors.textPrimaryOf(context),
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Affiliated University',
                             prefixIcon: Icon(Icons.account_balance_outlined),
                           ),
-                          hint: const Text('Select affiliating university'),
+                          hint: Text(
+                            'Select affiliating university',
+                            style: TextStyle(
+                              color: AppColors.textMutedOf(context),
+                            ),
+                          ),
                           items: unis.map((u) {
                             return DropdownMenuItem<String>(
                               value: u.id,
-                              child: Text('${u.name} (${u.slug})'),
+                              child: Text(
+                                '${u.name} (${u.slug})',
+                                style: TextStyle(
+                                  color: AppColors.textPrimaryOf(context),
+                                ),
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) =>
@@ -197,44 +234,44 @@ class _AddInstitutePageState extends ConsumerState<AddInstitutePage> {
                     // Autonomous Toggle Switch
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text(
+                      title: Text(
                         'Autonomous Syllabus Structure',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.textPrimaryOf(context),
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'Enables custom course codes and curriculum schemes '
                         'independent of university guidelines.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: AppColors.textSecondaryOf(context),
                         ),
                       ),
                       value: _isAutonomous,
                       activeThumbColor: AppColors.accent,
                       onChanged: (val) => setState(() => _isAutonomous = val),
                     ),
-                    const Divider(color: AppColors.surfaceBorder),
+                    Divider(color: AppColors.borderOf(context)),
 
                     // Active Tenant Switch
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text(
+                      title: Text(
                         'Tenant Active Status',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.textPrimaryOf(context),
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'Allow students and staff from this campus to sign in.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: AppColors.textSecondaryOf(context),
                         ),
                       ),
                       value: _isActive,

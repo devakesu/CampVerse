@@ -46,21 +46,21 @@ class _TotpInputState extends ConsumerState<TotpInput> {
     final defaultPinTheme = PinTheme(
       width: 52,
       height: 56,
-      textStyle: const TextStyle(
+      textStyle: TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
+        color: AppColors.textPrimaryOf(context),
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: AppColors.surfaceElevatedOf(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
     );
 
     final focusedPinTheme = defaultPinTheme.copyWith(
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: AppColors.surfaceElevatedOf(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.primary, width: 2),
       ),
@@ -68,7 +68,7 @@ class _TotpInputState extends ConsumerState<TotpInput> {
 
     final errorPinTheme = defaultPinTheme.copyWith(
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: AppColors.surfaceElevatedOf(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.error, width: 1.5),
       ),
@@ -77,9 +77,12 @@ class _TotpInputState extends ConsumerState<TotpInput> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
+        Text(
           'Enter the 6-digit code from your authenticator app:',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: AppColors.textSecondaryOf(context),
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 20),
         Center(

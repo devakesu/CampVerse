@@ -1,3 +1,4 @@
+import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/providers/super_admin_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:campverse/features/super_admin/institutes/add_institute_page.dart';
@@ -19,9 +20,16 @@ class SuperAdminDashboardPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final metricsAsync = ref.watch(systemMetricsProvider);
+    final isDark = AppColors.isDark(context);
+    final superAdminColor =
+        AppColors.roleColorOf(context, AppRole.superAdmin);
+    final principalColor =
+        AppColors.roleColorOf(context, AppRole.principal);
+    final hodColor = AppColors.roleColorOf(context, AppRole.hod);
+    final studentColor = AppColors.roleColorOf(context, AppRole.student);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -29,31 +37,37 @@ class SuperAdminDashboardPage extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.roleSuperAdmin.withValues(alpha: 0.18),
-                  AppColors.surface,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: AppColors.surfaceOf(context),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.roleSuperAdmin.withValues(alpha: 0.3),
+                color: superAdminColor.withValues(
+                  alpha: isDark ? 0.35 : 0.2,
+                ),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.25)
+                      : Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.roleSuperAdmin.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
+                    color: superAdminColor.withValues(
+                      alpha: isDark ? 0.2 : 0.1,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.admin_panel_settings_rounded,
                     size: 36,
-                    color: AppColors.roleSuperAdmin,
+                    color: superAdminColor,
                   ),
                 ),
                 const SizedBox(width: 20),
@@ -61,21 +75,22 @@ class SuperAdminDashboardPage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'CampVerse Multi-Tenant Console',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3,
+                          color: AppColors.textPrimaryOf(context),
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'System governance, platform-wide tenant management, '
                         'and FLE security.',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.textSecondary,
+                          color: AppColors.textSecondaryOf(context),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -89,15 +104,15 @@ class SuperAdminDashboardPage extends ConsumerWidget {
                               shape: BoxShape.circle,
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          const Flexible(
-                            child: Text(
-                              'All System Services Operational (FLE Active)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'All System Services Operational (FLE Enforced)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.success
+                                  : const Color(0xFF047857),
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
@@ -108,7 +123,7 @@ class SuperAdminDashboardPage extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           // Platform Stats Section
           Text(
@@ -137,27 +152,27 @@ class SuperAdminDashboardPage extends ConsumerWidget {
                         title: 'Universities',
                         count: '${metrics.totalUniversities}',
                         icon: Icons.account_balance_rounded,
-                        color: AppColors.roleSuperAdmin,
+                        color: superAdminColor,
                         onTap: () => onNavigateToTab(1),
                       ),
                       _StatCard(
                         title: 'Institutes',
                         count: '${metrics.totalInstitutes}',
                         icon: Icons.domain_rounded,
-                        color: AppColors.rolePrincipal,
+                        color: principalColor,
                         onTap: () => onNavigateToTab(2),
                       ),
                       _StatCard(
                         title: 'Departments',
                         count: '${metrics.totalDepartments}',
                         icon: Icons.apartment_rounded,
-                        color: AppColors.roleHod,
+                        color: hodColor,
                       ),
                       _StatCard(
                         title: 'User Profiles',
                         count: '${metrics.totalUsers}',
                         icon: Icons.people_alt_rounded,
-                        color: AppColors.roleStudent,
+                        color: studentColor,
                       ),
                     ],
                   );
@@ -195,9 +210,9 @@ class SuperAdminDashboardPage extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.add_business_rounded,
-                    color: AppColors.roleSuperAdmin,
+                    color: superAdminColor,
                   ),
                   label: const Text('Add University'),
                   style: OutlinedButton.styleFrom(
@@ -215,9 +230,9 @@ class SuperAdminDashboardPage extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.domain_add_rounded,
-                    color: AppColors.rolePrincipal,
+                    color: principalColor,
                   ),
                   label: const Text('Onboard Institute'),
                   style: OutlinedButton.styleFrom(
@@ -233,32 +248,32 @@ class SuperAdminDashboardPage extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: AppColors.surfaceOf(context),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.surfaceBorder),
+              border: Border.all(color: AppColors.borderOf(context)),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.shield_outlined,
                       color: AppColors.accent,
                       size: 20,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
                       'Zero-Knowledge & FLE Cryptography Status',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: AppColors.textPrimaryOf(context),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Text(
                   'Student & Faculty identity fields (full names, mobile '
                   'numbers, emergency contacts, and certificates) are '
@@ -267,7 +282,7 @@ class SuperAdminDashboardPage extends ConsumerWidget {
                   'peppering.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textSecondary,
+                    color: AppColors.textSecondaryOf(context),
                     height: 1.5,
                   ),
                 ),
@@ -280,7 +295,7 @@ class SuperAdminDashboardPage extends ConsumerWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _StatCard extends StatefulWidget {
   const _StatCard({
     required this.title,
     required this.count,
@@ -296,52 +311,92 @@ class _StatCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<_StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<_StatCard> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(icon, size: 16, color: color),
-                  ),
-                ],
+    final isDark = AppColors.isDark(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.identity()
+          ..translateByDouble(0, _isHovered ? -2.0 : 0.0, 0, 1),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _isHovered
+                ? widget.color.withValues(alpha: 0.6)
+                : AppColors.borderOf(context),
+            width: _isHovered ? 1.5 : 1,
+          ),
+          boxShadow: [
+            if (_isHovered)
+              BoxShadow(
+                color: widget.color.withValues(alpha: isDark ? 0.2 : 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              )
+            else
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
-              Text(
-                count,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+          ],
+        ),
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondaryOf(context),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: widget.color.withValues(
+                          alpha: isDark ? 0.2 : 0.1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(widget.icon, size: 16, color: widget.color),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                Text(
+                  widget.count,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,3 +1,4 @@
+import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/models/university.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -19,12 +20,24 @@ class UniversityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final superAdminColor = AppColors.roleColorOf(context, AppRole.superAdmin);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.15)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: InkWell(
         onTap: onTap,
@@ -37,12 +50,14 @@ class UniversityCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.roleSuperAdmin.withValues(alpha: 0.12),
+                  color: superAdminColor.withValues(
+                    alpha: isDark ? 0.2 : 0.1,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.account_balance_rounded,
-                  color: AppColors.roleSuperAdmin,
+                  color: superAdminColor,
                   size: 24,
                 ),
               ),
@@ -56,10 +71,10 @@ class UniversityCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             university.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: AppColors.textPrimaryOf(context),
                             ),
                           ),
                         ),
@@ -69,16 +84,17 @@ class UniversityCard extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceElevated,
+                            color: AppColors.surfaceElevatedOf(context),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.surfaceBorder),
+                            border:
+                                Border.all(color: AppColors.borderOf(context)),
                           ),
                           child: Text(
                             university.slug,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.roleSuperAdmin,
+                              color: superAdminColor,
                             ),
                           ),
                         ),
@@ -87,34 +103,34 @@ class UniversityCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.location_on_outlined,
                           size: 14,
-                          color: AppColors.textSecondary,
+                          color: AppColors.textSecondaryOf(context),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           university.state,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: AppColors.textSecondaryOf(context),
                           ),
                         ),
                         if (university.website != null &&
                             university.website!.isNotEmpty) ...[
                           const SizedBox(width: 12),
-                          const Icon(
+                          Icon(
                             Icons.language_rounded,
                             size: 14,
-                            color: AppColors.textMuted,
+                            color: AppColors.textMutedOf(context),
                           ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               university.website!,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.primaryLight,
+                                color: AppColors.primaryOf(context),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),

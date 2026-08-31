@@ -76,9 +76,18 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+
     return Scaffold(
+      backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(
-        title: const Text('Add Affiliated University'),
+        title: Text(
+          'Add Affiliated University',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimaryOf(context),
+          ),
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -88,35 +97,45 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
             child: Container(
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: AppColors.surfaceOf(context),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.surfaceBorder),
+                border: Border.all(color: AppColors.borderOf(context)),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
+                    Text(
                       'University Details',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: AppColors.textPrimaryOf(context),
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Register a state or central affiliating university for '
                       'curriculum and institute onboarding.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: AppColors.textSecondaryOf(context),
                       ),
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: _nameController,
+                      style: TextStyle(color: AppColors.textPrimaryOf(context)),
                       decoration: const InputDecoration(
                         labelText: 'University Name *',
                         hintText: 'e.g. APJ Abdul Kalam Tech University',
@@ -136,6 +155,9 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
                           child: TextFormField(
                             controller: _slugController,
                             textCapitalization: TextCapitalization.characters,
+                            style: TextStyle(
+                              color: AppColors.textPrimaryOf(context),
+                            ),
                             decoration: const InputDecoration(
                               labelText: 'Slug / Code *',
                               hintText: 'e.g. KTU',
@@ -154,6 +176,9 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
                           flex: 2,
                           child: TextFormField(
                             controller: _stateController,
+                            style: TextStyle(
+                              color: AppColors.textPrimaryOf(context),
+                            ),
                             decoration: const InputDecoration(
                               labelText: 'State / Province *',
                               hintText: 'e.g. Kerala',
@@ -173,6 +198,7 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
                     TextFormField(
                       controller: _websiteController,
                       keyboardType: TextInputType.url,
+                      style: TextStyle(color: AppColors.textPrimaryOf(context)),
                       decoration: const InputDecoration(
                         labelText: 'Official Website URL',
                         hintText: 'https://ktu.edu.in',

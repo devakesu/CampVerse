@@ -6,21 +6,21 @@ enum MfaMethod {
   /// Time-based One-Time Password authenticator app.
   totp(
     'Authenticator App',
-    'Use Google Authenticator or 1Password',
+    'Use Google Authenticator, 1Password, or Authy',
     Icons.phonelink_lock_rounded,
   ),
 
   /// Email-delivered verification code.
   email(
     'Email OTP',
-    'Send a 6-digit code to institutional email',
+    'Send a 6-digit verification code to institutional email',
     Icons.mail_outline_rounded,
   ),
 
   /// SMS-delivered verification code.
   sms(
     'SMS OTP',
-    'Send verification code to registered mobile',
+    'Send verification code to registered mobile number',
     Icons.sms_outlined,
   );
 
@@ -53,6 +53,8 @@ class MfaMethodSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: MfaMethod.values.map((method) {
@@ -66,12 +68,13 @@ class MfaMethodSelector extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.12)
-                    : AppColors.surfaceElevated,
+                    ? AppColors.primary.withValues(alpha: isDark ? 0.16 : 0.1)
+                    : AppColors.surfaceElevatedOf(context),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color:
-                      isSelected ? AppColors.primary : AppColors.surfaceBorder,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.borderOf(context),
                   width: isSelected ? 1.5 : 1,
                 ),
               ),
@@ -81,15 +84,17 @@ class MfaMethodSelector extends StatelessWidget {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.primary.withValues(alpha: 0.2)
-                          : AppColors.surface,
+                          ? AppColors.primary.withValues(
+                              alpha: isDark ? 0.25 : 0.15,
+                            )
+                          : AppColors.surfaceOf(context),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       method.icon,
                       color: isSelected
-                          ? AppColors.primaryLight
-                          : AppColors.textSecondary,
+                          ? AppColors.primary
+                          : AppColors.textSecondaryOf(context),
                       size: 20,
                     ),
                   ),
@@ -101,17 +106,17 @@ class MfaMethodSelector extends StatelessWidget {
                         Text(
                           method.title,
                           style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: AppColors.textPrimaryOf(context),
                             fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.w500,
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
                             fontSize: 14,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           method.subtitle,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: AppColors.textSecondaryOf(context),
                             fontSize: 12,
                           ),
                         ),
@@ -121,7 +126,7 @@ class MfaMethodSelector extends StatelessWidget {
                   if (isSelected)
                     const Icon(
                       Icons.check_circle_rounded,
-                      color: AppColors.primaryLight,
+                      color: AppColors.primary,
                       size: 20,
                     ),
                 ],

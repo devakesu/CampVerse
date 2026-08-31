@@ -29,6 +29,7 @@ class _InstitutesPageState extends ConsumerState<InstitutesPage> {
     final institutesAsync = ref.watch(institutesProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundOf(context),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -46,14 +47,15 @@ class _InstitutesPageState extends ConsumerState<InstitutesPage> {
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimaryOf(context),
                               ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Manage institutional tenants, domain routing, '
                       'and status.',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: AppColors.textSecondaryOf(context),
                         fontSize: 13,
                       ),
                     ),
@@ -82,6 +84,7 @@ class _InstitutesPageState extends ConsumerState<InstitutesPage> {
             TextField(
               controller: _searchController,
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
+              style: TextStyle(color: AppColors.textPrimaryOf(context)),
               decoration: InputDecoration(
                 hintText: 'Search by institute name, slug, or domain...',
                 prefixIcon: const Icon(Icons.search_rounded),
@@ -120,15 +123,16 @@ class _InstitutesPageState extends ConsumerState<InstitutesPage> {
                           Icon(
                             Icons.domain_disabled_rounded,
                             size: 48,
-                            color: AppColors.textMuted.withValues(alpha: 0.5),
+                            color: AppColors.textMutedOf(context)
+                                .withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             _searchQuery.isEmpty
                                 ? 'No institutes registered yet.'
                                 : 'No matching institutes found.',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: AppColors.textSecondaryOf(context),
                               fontSize: 15,
                             ),
                           ),

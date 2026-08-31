@@ -34,40 +34,49 @@ class _RoleCardState extends State<RoleCard> {
 
   @override
   Widget build(BuildContext context) {
-    final roleColor = widget.role.badgeColor;
+    final roleColor = AppColors.roleColorOf(context, widget.role);
+    final isDark = AppColors.isDark(context);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeInOut,
         transform: Matrix4.identity()
-          ..translateByDouble(0, _isHovered ? -4.0 : 0.0, 0, 1),
+          ..translateByDouble(0, _isHovered ? -3.0 : 0.0, 0, 1),
         child: InkWell(
           onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: widget.isSelected
-                  ? roleColor.withValues(alpha: 0.12)
-                  : AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
+                  ? roleColor.withValues(alpha: isDark ? 0.16 : 0.08)
+                  : AppColors.surfaceOf(context),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: widget.isSelected
                     ? roleColor
                     : (_isHovered
-                        ? roleColor.withValues(alpha: 0.5)
-                        : AppColors.surfaceBorder),
-                width: widget.isSelected ? 2 : 1,
+                        ? roleColor.withValues(alpha: 0.6)
+                        : AppColors.borderOf(context)),
+                width: widget.isSelected ? 2 : 1.2,
               ),
               boxShadow: [
                 if (widget.isSelected || _isHovered)
                   BoxShadow(
-                    color: roleColor.withValues(alpha: 0.2),
-                    blurRadius: 16,
+                    color: roleColor.withValues(alpha: isDark ? 0.25 : 0.1),
+                    blurRadius: 14,
                     offset: const Offset(0, 6),
+                  )
+                else
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
               ],
             ),
@@ -79,12 +88,12 @@ class _RoleCardState extends State<RoleCard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: roleColor.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
+                        color: roleColor.withValues(alpha: isDark ? 0.2 : 0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(widget.role.icon, color: roleColor, size: 26),
+                      child: Icon(widget.role.icon, color: roleColor, size: 24),
                     ),
                     if (widget.isBaseRole)
                       Container(
@@ -93,14 +102,15 @@ class _RoleCardState extends State<RoleCard> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.surfaceBorder),
+                          color: AppColors.surfaceElevatedOf(context),
+                          borderRadius: BorderRadius.circular(6),
+                          border:
+                              Border.all(color: AppColors.borderOf(context)),
                         ),
-                        child: const Text(
-                          'Primary',
+                        child: Text(
+                          'Primary Base',
                           style: TextStyle(
-                            color: AppColors.textMuted,
+                            color: AppColors.textMutedOf(context),
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -108,23 +118,23 @@ class _RoleCardState extends State<RoleCard> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       widget.role.displayName,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
+                      style: TextStyle(
+                        color: AppColors.textPrimaryOf(context),
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.role.description,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: AppColors.textSecondaryOf(context),
                         fontSize: 13,
                       ),
                       maxLines: 2,
@@ -132,16 +142,16 @@ class _RoleCardState extends State<RoleCard> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Launch Portal',
+                      'Launch Workspace',
                       style: TextStyle(
                         color: widget.isSelected
                             ? roleColor
-                            : AppColors.textSecondary,
+                            : AppColors.textSecondaryOf(context),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -151,7 +161,7 @@ class _RoleCardState extends State<RoleCard> {
                       size: 16,
                       color: widget.isSelected
                           ? roleColor
-                          : AppColors.textSecondary,
+                          : AppColors.textSecondaryOf(context),
                     ),
                   ],
                 ),
