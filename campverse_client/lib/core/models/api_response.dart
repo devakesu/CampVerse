@@ -8,6 +8,23 @@ class ApiResponse<T> {
     this.message,
   });
 
+  /// Factory creating a successful response.
+  factory ApiResponse.success(T data, [String? message]) {
+    return ApiResponse<T>(
+      success: true,
+      data: data,
+      message: message,
+    );
+  }
+
+  /// Factory creating a failed response.
+  factory ApiResponse.failure(String error) {
+    return ApiResponse<T>(
+      success: false,
+      error: error,
+    );
+  }
+
   /// Factory deserializer converting JSON map to typed ApiResponse.
   factory ApiResponse.fromJson(
     Map<String, dynamic> json,
