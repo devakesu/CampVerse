@@ -1,12 +1,19 @@
-import { Hono } from "hono";
+import { Hono } from 'hono';
+import { authRouter } from './routes/auth.ts';
 
 const app = new Hono();
 
-app.get("/health", (c) => {
-  return c.json({ status: "online", service: "campverse-deno-api" });
+// Health Check
+app.get('/health', (c) => {
+  return c.json({ status: 'online', service: 'campverse-deno-api' });
 });
 
-app.post("/webhooks/razorpay", async (c) => {
+// Mount Auth routes (accessible via direct proxy or /api gateway)
+app.route('/auth', authRouter);
+app.route('/api/auth', authRouter);
+
+// Razorpay webhooks
+app.post('/webhooks/razorpay', (c) => {
   return c.json({ received: true });
 });
 

@@ -1,30 +1,46 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:campverse/core/models/app_role.dart';
+import 'package:campverse/core/models/auth_user.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:campverse/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('AppRole Model & Claim Security Tests', () {
+    test('AppRole parses all valid PostgreSQL database strings', () {
+      expect(AppRole.fromDbString('super_admin'), AppRole.superAdmin);
+      expect(AppRole.fromDbString('principal'), AppRole.principal);
+      expect(AppRole.fromDbString('office_admin'), AppRole.officeAdmin);
+      expect(AppRole.fromDbString('student_union'), AppRole.studentUnion);
+      expect(AppRole.fromDbString('hod'), AppRole.hod);
+      expect(AppRole.fromDbString('faculty'), AppRole.faculty);
+      expect(AppRole.fromDbString('club_admin'), AppRole.clubAdmin);
+      expect(AppRole.fromDbString('student'), AppRole.student);
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('AppRole returns default student for unknown or null strings', () {
+      expect(AppRole.fromDbString(null), AppRole.student);
+      expect(AppRole.fromDbString('invalid_role'), AppRole.student);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('AppRole.fromClaim safely parses JWT claim strings', () {
+      expect(AppRole.fromClaim('club_admin'), AppRole.clubAdmin);
+      expect(AppRole.fromClaim('hod'), AppRole.hod);
+      expect(AppRole.fromClaim(null), isNull);
+      expect(AppRole.fromClaim(''), isNull);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('HOD role correctly implies faculty access', () {
+      expect(AppRole.hod.impliesFaculty, isTrue);
+      expect(AppRole.student.impliesFaculty, isFalse);
+      expect(AppRole.clubAdmin.impliesFaculty, isFalse);
+    });
+
+    test('AuthUserState computed properties', () {
+      const state1 = AuthUserState(
+        availableRoles: [AppRole.student, AppRole.clubAdmin],
+      );
+      expect(state1.hasMultipleRoles, isTrue);
+
+      const state2 = AuthUserState();
+      expect(state2.hasMultipleRoles, isFalse);
+    });
   });
 }

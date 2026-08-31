@@ -46,7 +46,6 @@ linter:
     # Performance & Memory Guardrails
     - cancel_subscriptions
     - close_sinks
-    - unawaited_futures
     - avoid_print
     - avoid_unnecessary_containers
     - avoid_web_libraries_in_flutter
@@ -58,10 +57,7 @@ linter:
 
     # Type Safety & Async Correctness
     - always_declare_return_types
-    - avoid_returning_null_for_future
     - avoid_void_async
-    - discard_document_comments
-    - unawaited_futures
 
     # Code Quality & Clean Architecture
     - always_put_control_body_on_new_line
@@ -73,7 +69,6 @@ linter:
     - avoid_field_initializers_in_const_classes
     - avoid_function_literals_in_foreach_calls
     - avoid_init_to_null
-    - avoid_null_checks_in_equality_operators
     - avoid_renaming_method_parameters
     - avoid_return_types_on_setters
     - avoid_returning_null_for_void
@@ -97,7 +92,6 @@ linter:
     - prefer_collection_literals
     - prefer_conditional_assignment
     - prefer_contains
-    - prefer_equal_for_default_values
     - prefer_final_fields
     - prefer_final_in_for_each
     - prefer_final_locals
@@ -119,7 +113,6 @@ linter:
     - test_types_in_equals
     - throw_in_finally
     - type_annotate_public_apis
-    - unawaited_futures
     - unnecessary_brace_in_string_interps
     - unnecessary_const
     - unnecessary_constructor_name

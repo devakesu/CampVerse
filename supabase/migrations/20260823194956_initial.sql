@@ -174,6 +174,7 @@ CREATE TABLE institutes (
     
     branding JSONB DEFAULT '{}',
     settings JSONB DEFAULT '{}',
+    secrets BYTEA,
     
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT now(),
@@ -328,62 +329,58 @@ CREATE TABLE student_course_enrollments (
 CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     
+    -- Multi-Tenant Topology
     institute_id UUID REFERENCES institutes(id) ON DELETE SET NULL,
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
     programme_id UUID REFERENCES programmes(id) ON DELETE SET NULL,
     class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
-    
-    full_name TEXT NOT NULL,
-    institutional_email TEXT UNIQUE,
-    university_reg_no TEXT UNIQUE,        -- e.g., KTU Register Number ('MDL25CSBS0000')
-    admission_no TEXT,
     role app_role DEFAULT 'student'::app_role NOT NULL,
     designation faculty_designation,
-    avatar_path TEXT,
-    bio TEXT,
     
-    -- Binary Ciphertexts (AES-256-GCM)
+    -- 1. Identity & Public Persona (Encrypted)
+    full_name_enc BYTEA NOT NULL,          -- AES-256-GCM ciphertext
+    full_name_bidx BYTEA,                  -- HMAC-SHA256(name, pepper) for exact lookups
+    bio_enc BYTEA,                         -- User biography
+    avatar_path_enc BYTEA,                 -- Encrypted storage path to profile image
+    
+    -- 2. Searchable Identifiers & Contact PII (Encrypted Display + Blind Indexes)
+    institutional_email_enc BYTEA,
+    institutional_email_bidx BYTEA UNIQUE, -- HMAC-SHA256(email, pepper)
+    
+    university_reg_no_enc BYTEA,
+    university_reg_no_bidx BYTEA UNIQUE,   -- HMAC-SHA256(reg_no, pepper)
+    
+    admission_no_enc BYTEA,
+    admission_no_bidx BYTEA,               -- HMAC-SHA256(admission_no, pepper)
+    
     phone_enc BYTEA,
+    phone_bidx BYTEA,                      -- HMAC-SHA256(phone, pepper)
+    
+    -- 3. Confidential Personal & Regulatory Data
     dob_enc BYTEA,
     gender_enc BYTEA,
     blood_group_enc BYTEA,
-    emergency_contact_enc BYTEA,
-    address_enc BYTEA,
-    identity_doc_enc BYTEA,
+    emergency_contact_enc BYTEA,           -- Encrypted JSON: { name, relation, phone }
+    address_enc BYTEA,                     -- Encrypted JSON: { permanent, residential }
+    identity_doc_enc BYTEA,                -- Encrypted national ID / document tokens
     
-    fcm_tokens TEXT[] DEFAULT '{}',
+    -- 4. Academic Performance & Sensitive Metadata
+    academic_metrics_enc BYTEA,            -- Encrypted JSON: { cgpa, sgpa_history, activity_points }
+    metadata_enc BYTEA,                    -- Encrypted JSON: { hosteler, hostel_room, bus_route_no }
+    social_profiles_enc BYTEA,             -- Encrypted JSON: { github, linkedin, portfolio }
     
-    academic_metrics JSONB DEFAULT '{
-        "cgpa": null,
-        "sgpa_history": {},
-        "activity_points": 0
-    }'::jsonb,
-    
-    social_profiles JSONB DEFAULT '{
-        "github": null,
-        "linkedin": null,
-        "portfolio": null
-    }'::jsonb,
-    
+    -- 5. Operational State & Push Endpoints
+    fcm_tokens_enc BYTEA,                  -- Encrypted array of device push tokens
     preferences JSONB DEFAULT '{
         "theme": "system",
         "notifications": {
             "announcements": true,
             "event_reminders": true,
             "direct_messages": true
-        },
-        "privacy": {
-            "show_email": false,
-            "show_metrics": false
         }
     }'::jsonb,
     
-    metadata JSONB DEFAULT '{
-        "hosteler": false,
-        "hostel_room": null,
-        "bus_route_no": null
-    }'::jsonb,
-    
+    -- Lifecycle & Verification
     status account_status DEFAULT 'pending_verification'::account_status NOT NULL,
     verified_at TIMESTAMPTZ,
     verified_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
@@ -409,36 +406,6 @@ ALTER TABLE student_course_enrollments
     ADD CONSTRAINT fk_enrollment_student 
     FOREIGN KEY (student_id) REFERENCES profiles(id) ON DELETE CASCADE;
 
--- Automatic Profile Creation Trigger on Supabase Auth Signup
-CREATE OR REPLACE FUNCTION public.handle_new_user() 
-RETURNS TRIGGER
-LANGUAGE plpgsql 
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-    INSERT INTO public.profiles (
-        id, 
-        full_name, 
-        institutional_email,
-        role,
-        status
-    )
-    VALUES (
-        NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', 'Campus Student'),
-        NEW.email,
-        'student'::app_role,
-        'pending_verification'::account_status
-    );
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
-
 -- ==============================================================================
 -- 6. ORGANIZATIONS (Clubs & Student Unions)
 -- ==============================================================================
@@ -446,36 +413,54 @@ CREATE TRIGGER on_auth_user_created
 CREATE TABLE organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     institute_id UUID NOT NULL REFERENCES institutes(id) ON DELETE CASCADE,
+    
+    -- Public Discovery & Routing (Plaintext)
     name TEXT NOT NULL,
     slug TEXT NOT NULL,
     org_type org_type NOT NULL,
-    org_category TEXT,
-
-    core_team JSONB DEFAULT '[]',
-    social_links JSONB DEFAULT '{}',
+    org_category TEXT,                   -- e.g., 'Technical', 'Cultural', 'Sports'
     logo_path TEXT,
     
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
+    -- Encrypted Operational Payloads (AES-256-GCM)
+    description_enc BYTEA,               -- Detailed description, constitution/bylaws
+    contacts_enc BYTEA,                  -- Encrypted JSON: { email, phone, leads_contact }
+    social_links_enc BYTEA,              -- Encrypted JSON: { discord, whatsapp, linkedin }
+    secrets_enc BYTEA,                   -- Encrypted JSON: { payout_upi, bank_details, webhook_keys }
+    core_team_enc BYTEA,                 -- Encrypted snapshot of lead profiles/responsibilities
+    
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    
     UNIQUE(institute_id, slug)
 );
 
+-- Database-level constraint: exactly one Student Union per institute
 CREATE UNIQUE INDEX unique_student_union_per_institute 
 ON organizations (institute_id) 
 WHERE (org_type = 'student_union');
+
+
+-- ==============================================================================
+-- 6.1 ORGANIZATION MEMBERSHIPS
+-- ==============================================================================
 
 CREATE TABLE organization_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
-    role member_role DEFAULT 'member' NOT NULL,
-    designation TEXT,
-    joined_at TIMESTAMPTZ DEFAULT now(),
-    is_active BOOLEAN DEFAULT TRUE,
+    -- Authorization & Access Controls (Plaintext for RLS)
+    role member_role DEFAULT 'member'::member_role NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    joined_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
+    -- Encrypted Member Data (AES-256-GCM)
+    designation_enc BYTEA,               -- Custom executive title (e.g., 'Chief Technical Officer')
+    internal_notes_enc BYTEA,            -- Recruitment notes, interview ratings, remarks
+    
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    
     UNIQUE(org_id, user_id)
 );
 
@@ -487,32 +472,56 @@ CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     institute_id UUID NOT NULL REFERENCES institutes(id) ON DELETE CASCADE,
     primary_org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    
+    -- Core Query & Display Attributes (Plaintext for Discovery & Filtering)
     title TEXT NOT NULL,
     venue TEXT,
-    start_time TIMESTAMPTZ,
-    end_time TIMESTAMPTZ,
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
     reg_end TIMESTAMPTZ,
+    max_capacity INT,                     -- NULL = unlimited capacity
     tags TEXT[] DEFAULT '{}',
     poster_url TEXT,
-    visibility event_visibility DEFAULT 'institute',
+    visibility event_visibility DEFAULT 'institute' NOT NULL,
     
-    reg_config BOOLEAN DEFAULT false,    
-    status event_status DEFAULT 'draft', 
+    -- State & Configuration Flags
+    reg_config BOOLEAN DEFAULT FALSE NOT NULL,
+    status event_status DEFAULT 'draft' NOT NULL,
+    is_featured BOOLEAN DEFAULT FALSE NOT NULL,
     
-    eligibility JSONB DEFAULT '{}',       
-    collaborators JSONB DEFAULT '[]',    
-    itinerary JSONB DEFAULT '[]',
-    pricing JSONB DEFAULT '{}',
-    incentives JSONB DEFAULT '{}',
-    contacts JSONB DEFAULT '[]',
-    links JSONB DEFAULT '{}',
+    -- Flexible Operational Payloads (JSONB)
+    eligibility JSONB DEFAULT '{
+        "allowed_programmes": [],
+        "allowed_semesters": [],
+        "gender_restriction": null
+    }'::jsonb,
+    collaborators JSONB DEFAULT '[]',     -- Co-organizing clubs or partner institutes
+    itinerary JSONB DEFAULT '[]',         -- Agenda/timeline items
+    pricing JSONB DEFAULT '{
+        "is_paid": false,
+        "base_price_cents": 0,
+        "currency": "INR",
+        "tiers": []
+    }'::jsonb,
+    incentives JSONB DEFAULT '{
+        "ktu_activity_points": 0,
+        "certificate_provided": true,
+        "duty_leave_approved": false
+    }'::jsonb,
+    contacts JSONB DEFAULT '[]',          -- Public coordinator contact list: [{ name, role, phone }]
+    links JSONB DEFAULT '{}',             -- Social, brochure, discord links
     media_urls JSONB DEFAULT '[]',
+    
+    -- Encrypted Internal Planning (AES-256-GCM)
+    internal_notes_enc BYTEA,            -- Private budget info, judge rubrics, sponsor contracts
 
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
+    -- Audit Timestamps
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
 
+    -- Integrity Constraints
     CONSTRAINT check_event_chronology CHECK (start_time < end_time),
-    CONSTRAINT check_registration_window CHECK (reg_end <= start_time)
+    CONSTRAINT check_registration_window CHECK (reg_end IS NULL OR reg_end <= start_time)
 );
 
 CREATE TABLE event_registrations (
@@ -520,15 +529,22 @@ CREATE TABLE event_registrations (
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
-    status ticket_status DEFAULT 'confirmed'::ticket_status,
-    qr_payload TEXT NOT NULL UNIQUE,
+    -- Pass & Gate Verification
+    status ticket_status DEFAULT 'confirmed'::ticket_status NOT NULL,
+    qr_payload TEXT NOT NULL UNIQUE,      -- Cryptographic random pass token (e.g. UUIDv4 or HMAC token)
     
-    payment_data JSONB DEFAULT '{}',
+    -- Financial & Form Responses (Encrypted Payloads)
+    payment_data_enc BYTEA,               -- Encrypted JSON: { order_id, payment_id, receipt_no, amount, currency }
+    custom_responses_enc BYTEA,           -- Encrypted JSON: { dietary, resume_url, t_shirt, custom_answers }
+    
+    -- Gate Check-in Metadata
     scanned_at TIMESTAMPTZ,
     scanned_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
     
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+
+    -- Enforce 1 registration per user per event
     UNIQUE(event_id, user_id)
 );
 
@@ -541,21 +557,23 @@ CREATE TABLE posts (
     institute_id UUID NOT NULL REFERENCES institutes(id) ON DELETE CASCADE,
     author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
+    -- Scoped Routing (Plaintext for Fast Joins & RLS)
     org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     department_id UUID REFERENCES departments(id) ON DELETE CASCADE,
     class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
     
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    media_urls TEXT[] DEFAULT '{}',
-    attachments JSONB DEFAULT '[]',
+    scope post_scope DEFAULT 'campus_wide'::post_scope NOT NULL,
+    status post_status DEFAULT 'published'::post_status NOT NULL,
+    is_pinned BOOLEAN DEFAULT FALSE NOT NULL,
     
-    scope post_scope DEFAULT 'campus_wide' NOT NULL,
-    status post_status DEFAULT 'published' NOT NULL,
-    is_pinned BOOLEAN DEFAULT FALSE,
+    -- Encrypted Notice Payloads (AES-256-GCM)
+    title_enc BYTEA NOT NULL,
+    content_enc BYTEA NOT NULL,
+    media_urls_enc BYTEA,                -- Encrypted JSON array of image/video URLs
+    attachments_enc BYTEA,               -- Encrypted JSON array: [{ name, url, file_size, mime_type }]
     
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
 -- ==============================================================================
@@ -568,11 +586,13 @@ CREATE TABLE class_timetables (
     allocation_id UUID NOT NULL REFERENCES class_course_allocations(id) ON DELETE CASCADE,
     
     day day_of_week NOT NULL,
-    period_number INT NOT NULL,          -- Period 1, 2, 3...
-    classroom_hall TEXT,                 -- e.g., 'LH-302'
+    period_number INT NOT NULL,          -- Period slot 1, 2, 3...
+    classroom_hall TEXT,                 -- e.g., 'LH-302', 'CS Lab 2'
     
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    
+    -- Prevent double-booking a single class period
     UNIQUE(class_id, day, period_number)
 );
 
@@ -586,13 +606,16 @@ CREATE TABLE certificates (
     event_id UUID REFERENCES events(id) ON DELETE SET NULL,
     recipient_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
-    title TEXT NOT NULL,
-    verification_hash TEXT UNIQUE NOT NULL, -- SHA-256 validation token
-    pdf_storage_path TEXT NOT NULL,
-    metadata JSONB DEFAULT '{}',
+    -- Public Verification Index
+    verification_hash TEXT UNIQUE NOT NULL, -- SHA-256 token for instant QR/web validation
     
-    issued_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    -- Encrypted Certificate Assets (AES-256-GCM)
+    title_enc BYTEA NOT NULL,            -- Encrypted title (e.g., 'Certificate of Merit')
+    pdf_storage_path_enc BYTEA NOT NULL, -- Encrypted private storage path
+    metadata_enc BYTEA,                  -- Encrypted JSON: { rank, score, issue_authority, template_id }
+    
+    issued_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
 -- ==============================================================================
@@ -620,25 +643,17 @@ CREATE TRIGGER set_timestamp_certificates BEFORE UPDATE ON certificates FOR EACH
 -- ==============================================================================
 -- 12. PERFORMANCE & LOOKUP INDEXES
 -- ==============================================================================
+
+-- Profiles
 CREATE INDEX idx_profiles_institute ON profiles(institute_id);
 CREATE INDEX idx_profiles_department ON profiles(department_id);
 CREATE INDEX idx_profiles_class ON profiles(class_id);
 CREATE INDEX idx_profiles_role ON profiles(role);
-CREATE INDEX idx_profiles_university_reg ON profiles(university_reg_no);
-CREATE INDEX idx_profiles_inst_email ON profiles(institutional_email);
-CREATE INDEX idx_profiles_gin_metrics ON profiles USING GIN (academic_metrics);
 
--- Event Discovery & QR Validation
-CREATE INDEX idx_events_lookup ON events(institute_id, status, start_time);
-CREATE INDEX idx_events_visibility ON events(visibility);
-CREATE INDEX idx_registrations_qr ON event_registrations(qr_payload);
-CREATE INDEX idx_registrations_user ON event_registrations(user_id, event_id);
-
--- Timetable Queries
-CREATE INDEX idx_timetable_class ON class_timetables(class_id, day);
-
--- Certificate Verification
-CREATE INDEX idx_cert_hash ON certificates(verification_hash);
+CREATE INDEX idx_profiles_name_bidx ON profiles(full_name_bidx);
+CREATE INDEX idx_profiles_email_bidx ON profiles(institutional_email_bidx);
+CREATE INDEX idx_profiles_reg_no_bidx ON profiles(university_reg_no_bidx);
+CREATE INDEX idx_profiles_phone_bidx ON profiles(phone_bidx);
 
 -- Course & Enrollment Mappings
 CREATE INDEX idx_programme_courses_course ON programme_courses(course_id);
@@ -649,3 +664,366 @@ CREATE INDEX idx_enrollments_status ON student_course_enrollments(status);
 -- Organizations
 CREATE INDEX idx_org_members_org ON organization_members(org_id);
 CREATE INDEX idx_org_members_user ON organization_members(user_id);
+CREATE INDEX idx_org_members_role ON organization_members(role);
+CREATE INDEX idx_orgs_institute ON organizations(institute_id);
+CREATE INDEX idx_orgs_type ON organizations(org_type);
+
+-- Event Discovery & QR Validation
+CREATE INDEX idx_events_institute ON events(institute_id);
+CREATE INDEX idx_events_org ON events(primary_org_id);
+CREATE INDEX idx_events_status_time ON events(status, start_time);
+CREATE INDEX idx_events_visibility ON events(visibility);
+CREATE INDEX idx_events_gin_tags ON events USING GIN (tags);
+
+CREATE INDEX idx_registrations_qr ON event_registrations(qr_payload);
+CREATE INDEX idx_registrations_user_event ON event_registrations(user_id, event_id);
+CREATE INDEX idx_registrations_status ON event_registrations(status);
+
+-- Posts Performance & Feed Queries
+CREATE INDEX idx_posts_feed ON posts(institute_id, scope, status, created_at DESC);
+CREATE INDEX idx_posts_author ON posts(author_id);
+CREATE INDEX idx_posts_class ON posts(class_id) WHERE class_id IS NOT NULL;
+CREATE INDEX idx_posts_dept ON posts(department_id) WHERE department_id IS NOT NULL;
+CREATE INDEX idx_posts_org ON posts(org_id) WHERE org_id IS NOT NULL;
+
+-- Timetable Schedule Matrix
+CREATE INDEX idx_timetable_lookup ON class_timetables(class_id, day, period_number);
+CREATE INDEX idx_timetable_allocation ON class_timetables(allocation_id);
+
+-- Instant Certificate Hash Verification
+CREATE INDEX idx_certificates_hash ON certificates(verification_hash);
+CREATE INDEX idx_certificates_recipient ON certificates(recipient_id);
+
+-- ==============================================================================
+-- 13. RLS HELPER FUNCTIONS
+-- ==============================================================================
+
+-- Extract current user's institute
+CREATE OR REPLACE FUNCTION public.auth_institute_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT institute_id FROM public.profiles WHERE id = auth.uid();
+$$;
+
+-- Extract current user's role
+CREATE OR REPLACE FUNCTION public.auth_role()
+RETURNS app_role
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT role FROM public.profiles WHERE id = auth.uid();
+$$;
+
+-- Verify if user has administrative or faculty standing
+CREATE OR REPLACE FUNCTION public.is_staff_or_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE id = auth.uid() 
+          AND role IN ('super_admin', 'principal', 'office_admin', 'hod', 'faculty')
+    );
+$$;
+
+-- Verify if user is an active lead/core member of a specific organization
+CREATE OR REPLACE FUNCTION public.is_org_lead(target_org_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.organization_members
+        WHERE org_id = target_org_id 
+          AND user_id = auth.uid() 
+          AND is_active = TRUE 
+          AND role IN ('lead', 'core_member')
+    ) OR public.auth_role() IN ('super_admin', 'principal');
+$$;
+
+-- ==============================================================================
+-- 14. ENABLE ROW LEVEL SECURITY ON ALL TABLES
+-- ==============================================================================
+ALTER TABLE universities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE institutes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE programmes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE curriculum_schemes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE programme_courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_course_allocations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE student_course_enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_timetables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+
+-- ==============================================================================
+-- 15. TENANT & ACADEMIC TOPOLOGY POLICIES
+-- ==============================================================================
+
+-- Universities: Public read; Super Admin write
+CREATE POLICY "Public universities read"
+    ON universities FOR SELECT
+    USING (TRUE);
+
+-- Institutes: Read active institutes; Super Admin / Principal modify
+CREATE POLICY "Read active institutes"
+    ON institutes FOR SELECT
+    USING (is_active = TRUE OR auth_role() = 'super_admin');
+
+CREATE POLICY "Admin update institute"
+    ON institutes FOR UPDATE
+    USING (auth_role() = 'super_admin' OR (id = auth_institute_id() AND auth_role() = 'principal'));
+
+-- Academic Structure: Read by campus members; Modified by Institute Staff
+CREATE POLICY "Read campus departments"
+    ON departments FOR SELECT
+    USING (institute_id = auth_institute_id() OR auth_role() = 'super_admin');
+
+CREATE POLICY "Manage campus departments"
+    ON departments FOR ALL
+    USING (institute_id = auth_institute_id() AND is_staff_or_admin());
+
+CREATE POLICY "Read campus programmes"
+    ON programmes FOR SELECT
+    USING (institute_id = auth_institute_id() OR auth_role() = 'super_admin');
+
+CREATE POLICY "Manage campus programmes"
+    ON programmes FOR ALL
+    USING (institute_id = auth_institute_id() AND is_staff_or_admin());
+
+-- Curriculum & Courses: Read university schemes + own college courses
+CREATE POLICY "Read accessible schemes"
+    ON curriculum_schemes FOR SELECT
+    USING (
+        university_id IS NOT NULL OR 
+        institute_id = auth_institute_id() OR 
+        auth_role() = 'super_admin'
+    );
+
+CREATE POLICY "Read accessible courses"
+    ON courses FOR SELECT
+    USING (
+        university_id IS NOT NULL OR 
+        institute_id = auth_institute_id() OR 
+        auth_role() = 'super_admin'
+    );
+
+CREATE POLICY "Read programme course mappings"
+    ON programme_courses FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM programmes p 
+            WHERE p.id = programme_courses.programme_id 
+              AND (p.institute_id = auth_institute_id() OR auth_role() = 'super_admin')
+        )
+    );
+
+-- ==============================================================================
+-- 16. COHORTS, ALLOCATIONS & ENROLLMENTS POLICIES
+-- ==============================================================================
+
+CREATE POLICY "Read campus classes"
+    ON classes FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM programmes p 
+            WHERE p.id = classes.programme_id 
+              AND (p.institute_id = auth_institute_id() OR auth_role() = 'super_admin')
+        )
+    );
+
+CREATE POLICY "Read course allocations"
+    ON class_course_allocations FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM classes c 
+            JOIN programmes p ON p.id = c.programme_id 
+            WHERE c.id = class_course_allocations.class_id 
+              AND (p.institute_id = auth_institute_id() OR auth_role() = 'super_admin')
+        )
+    );
+
+-- Enrollments: Students see own enrollments; Teachers see class enrollments
+CREATE POLICY "Read own or advised student enrollments"
+    ON student_course_enrollments FOR SELECT
+    USING (
+        student_id = auth.uid() OR
+        is_staff_or_admin()
+    );
+
+CREATE POLICY "Manage student enrollments"
+    ON student_course_enrollments FOR ALL
+    USING (
+        student_id = auth.uid() OR
+        is_staff_or_admin()
+    );
+
+-- ==============================================================================
+-- 17. PROFILES SECURITY POLICIES
+-- ==============================================================================
+
+-- Profiles: Users can view profiles belonging to their institute
+CREATE POLICY "View campus member profiles"
+    ON profiles FOR SELECT
+    USING (
+        institute_id = auth_institute_id() OR 
+        id = auth.uid() OR 
+        auth_role() = 'super_admin'
+    );
+
+-- Profiles: Users can update their own profile; Admins can verify
+CREATE POLICY "Update own profile"
+    ON profiles FOR UPDATE
+    USING (id = auth.uid() OR is_staff_or_admin());
+
+-- ==============================================================================
+-- 18. ORGANIZATIONS & MEMBERSHIPS POLICIES
+-- ==============================================================================
+
+CREATE POLICY "View campus organizations"
+    ON organizations FOR SELECT
+    USING (institute_id = auth_institute_id() OR auth_role() = 'super_admin');
+
+CREATE POLICY "Manage organizations"
+    ON organizations FOR ALL
+    USING (
+        auth_role() IN ('super_admin', 'principal', 'student_union') AND 
+        institute_id = auth_institute_id()
+    );
+
+CREATE POLICY "View organization members"
+    ON organization_members FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM organizations o 
+            WHERE o.id = organization_members.org_id 
+              AND (o.institute_id = auth_institute_id() OR auth_role() = 'super_admin')
+        )
+    );
+
+CREATE POLICY "Manage organization members"
+    ON organization_members FOR ALL
+    USING (is_org_lead(org_id));
+
+-- ==============================================================================
+-- 19. EVENTS & TICKETING POLICIES
+-- ==============================================================================
+
+-- Events: Visibility-scoped read rules
+CREATE POLICY "View published events"
+    ON events FOR SELECT
+    USING (
+        (status = 'published' AND (
+            visibility = 'public' OR
+            (visibility = 'institute' AND institute_id = auth_institute_id()) OR
+            (visibility = 'club' AND is_org_lead(primary_org_id))
+        )) OR
+        is_org_lead(primary_org_id) OR
+        auth_role() IN ('super_admin', 'principal')
+    );
+
+CREATE POLICY "Create and manage club events"
+    ON events FOR ALL
+    USING (is_org_lead(primary_org_id) OR auth_role() IN ('super_admin', 'principal'));
+
+-- Registrations: User can view/buy own tickets; Leads can scan & check-in
+CREATE POLICY "View own tickets or scanned tickets"
+    ON event_registrations FOR SELECT
+    USING (
+        user_id = auth.uid() OR 
+        EXISTS (
+            SELECT 1 FROM events e 
+            WHERE e.id = event_registrations.event_id 
+              AND is_org_lead(e.primary_org_id)
+        )
+    );
+
+CREATE POLICY "Register for events"
+    ON event_registrations FOR INSERT
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Update check-in status"
+    ON event_registrations FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM events e 
+            WHERE e.id = event_registrations.event_id 
+              AND (is_org_lead(e.primary_org_id) OR is_staff_or_admin())
+        )
+    );
+
+-- ==============================================================================
+-- 20. BROADCASTS, TIMETABLES & CERTIFICATES POLICIES
+-- ==============================================================================
+
+-- Posts: Scope-based feed resolution
+CREATE POLICY "View scoped posts"
+    ON posts FOR SELECT
+    USING (
+        status = 'published' AND
+        institute_id = auth_institute_id() AND (
+            scope = 'campus_wide' OR
+            (scope = 'department' AND department_id = (SELECT department_id FROM profiles WHERE id = auth.uid())) OR
+            (scope = 'class_only' AND class_id = (SELECT class_id FROM profiles WHERE id = auth.uid())) OR
+            (scope = 'club_members' AND is_org_lead(org_id))
+        )
+    );
+
+CREATE POLICY "Publish posts"
+    ON posts FOR INSERT
+    WITH CHECK (
+        institute_id = auth_institute_id() AND
+        (is_staff_or_admin() OR (org_id IS NOT NULL AND is_org_lead(org_id)))
+    );
+
+-- Timetables: Campus read; Advisor/Faculty write
+CREATE POLICY "View class timetables"
+    ON class_timetables FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM classes c 
+            JOIN programmes p ON p.id = c.programme_id 
+            WHERE c.id = class_timetables.class_id 
+              AND (p.institute_id = auth_institute_id() OR auth_role() = 'super_admin')
+        )
+    );
+
+CREATE POLICY "Manage class timetables"
+    ON class_timetables FOR ALL
+    USING (is_staff_or_admin());
+
+-- Certificates: Recipient reads their own; Anyone with verification hash validates
+CREATE POLICY "Read own certificates or verify hash"
+    ON certificates FOR SELECT
+    USING (
+        recipient_id = auth.uid() OR
+        auth_role() = 'super_admin' OR
+        verification_hash IS NOT NULL -- Allows public unauthenticated hash check
+    );
+
+CREATE POLICY "Issue certificates"
+    ON certificates FOR INSERT
+    WITH CHECK (
+        institute_id = auth_institute_id() AND
+        (is_staff_or_admin() OR (event_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM events e WHERE e.id = event_id AND is_org_lead(e.primary_org_id)
+        )))
+    );
