@@ -17,10 +17,10 @@ authRouter.use('*', authMiddleware);
  * Security note: `active_role` is intentionally NOT read here — the client
  * always starts with base_role and restores switched roles from local TTL cache.
  */
-authRouter.post('/login-status', async (c): Promise<Response> => {
-  const user = c.get('user');
+authRouter.post('/login-status', (c): Response => {
   const profileStatus = c.get('profileStatus');
   const baseRole = c.get('baseRole');
+
 
   // No profile row → orphan auth user (Google OAuth / publishable-key signup)
   if (profileStatus === null || baseRole === null) {

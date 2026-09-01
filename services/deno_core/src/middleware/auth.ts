@@ -27,10 +27,16 @@ export async function authMiddleware(
   c: Context<{ Variables: AuthContextVariables }>,
   next: Next,
 ): Promise<Response | void> {
+  // Allow preflight OPTIONS requests without requiring Authorization header
+  if (c.req.method === 'OPTIONS') {
+    return await next();
+  }
+
   const authHeader = c.req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return c.json({ success: false, error: 'Missing or malformed Authorization header' }, 401);
   }
+
 
   const token = authHeader.replace('Bearer ', '').trim();
 

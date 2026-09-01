@@ -57,6 +57,8 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
   final SecureStorageService storageService;
 
   StreamSubscription<AuthState>? _authSubscription;
+  bool _isProcessingSession = false;
+  String? _lastProcessedToken;
 
   void _init() {
     unawaited(_processSession(authService.currentSession));
@@ -72,6 +74,7 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
           event == AuthChangeEvent.userUpdated) {
         unawaited(_processSession(session));
       } else if (event == AuthChangeEvent.signedOut) {
+        _lastProcessedToken = null;
         state = const AuthUserState();
       }
     });
@@ -88,19 +91,31 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
 
   Future<void> _processSession(Session? session) async {
     if (session == null) {
+      _lastProcessedToken = null;
       state = const AuthUserState();
       return;
     }
 
-    state = state.copyWith(
-      isLoading: true,
-      session: session,
-      user: session.user,
-      clearError: true,
-      clearAccountFlags: true,
-    );
+    // Skip redundant processing if already fully authenticated with this exact token
+    if (_lastProcessedToken == session.accessToken &&
+        state.isAuthenticated &&
+        state.activeRole != null &&
+        !state.isLoading) {
+      return;
+    }
+
+    if (_isProcessingSession) return;
+    _isProcessingSession = true;
 
     try {
+      state = state.copyWith(
+        isLoading: true,
+        session: session,
+        user: session.user,
+        clearError: true,
+        clearAccountFlags: true,
+      );
+
       // 1. Validate login eligibility (profile exists, account active)
       final loginStatus = await roleService.checkLoginStatus(
         session.accessToken,
@@ -111,6 +126,7 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
         await authService.signOut();
         await storageService.clearAll();
 
+        _lastProcessedToken = null;
         state = AuthUserState(
           accountNotFound:
               loginStatus.isNoProfile ||
@@ -132,6 +148,7 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
           state = state.copyWith(
             isMfaPending: true,
             isLoading: false,
+            loadingAction: AuthLoadingAction.none,
           );
           return;
         }
@@ -141,39 +158,45 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       final roles = await roleService.resolveUserRoles(session.accessToken);
 
       // 4. Determine base role from login-status response (server-authoritative)
-      //    Always start the session with base_role — role picker / switches
-      //    are user-initiated after login.
       final baseRole =
           loginStatus.baseRole ??
           (roles.isNotEmpty ? roles.first : AppRole.student);
 
-      // 5. Restore switched role if within 30-minute TTL window
+      final finalRoles = roles.isNotEmpty ? roles : [baseRole];
+
+      // 5. Restore switched role if within 30-minute TTL window, or keep existing activeRole
       var activeRole = baseRole;
       final restoredRoleStr = await storageService.getRestoredRoleIfValid();
       if (restoredRoleStr != null) {
         final restoredRole = AppRole.fromDbString(restoredRoleStr);
         // Only restore if the role is still in the user's authorized roles
-        if (roles.contains(restoredRole)) {
+        if (finalRoles.contains(restoredRole)) {
           activeRole = restoredRole;
         } else {
           // Role no longer authorized — clear the stale switch
           await storageService.clearRoleSwitch();
         }
+      } else if (state.activeRole != null && finalRoles.contains(state.activeRole)) {
+        // Preserve current activeRole across token refresh / session updates
+        activeRole = state.activeRole!;
       }
 
       // Single-role users always use their only role
-      if (roles.length == 1) {
-        activeRole = roles.first;
+      if (finalRoles.length == 1) {
+        activeRole = finalRoles.first;
       }
+
+      _lastProcessedToken = session.accessToken;
 
       state = state.copyWith(
         session: session,
         user: session.user,
         baseRole: baseRole,
-        availableRoles: roles,
+        availableRoles: finalRoles,
         activeRole: activeRole,
         isMfaPending: false,
         isLoading: false,
+        loadingAction: AuthLoadingAction.none,
         clearError: true,
         clearAccountFlags: true,
       );
@@ -183,8 +206,11 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
     } on Exception catch (e) {
       state = state.copyWith(
         isLoading: false,
+        loadingAction: AuthLoadingAction.none,
         errorMessage: 'Failed to initialize session: $e',
       );
+    } finally {
+      _isProcessingSession = false;
     }
   }
 
@@ -199,7 +225,11 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
     required String password,
     String? captchaToken,
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      loadingAction: AuthLoadingAction.password,
+      clearError: true,
+    );
     try {
       final res = await authService.signInWithPassword(
         email: email,
@@ -212,6 +242,7 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       }
       state = state.copyWith(
         isLoading: false,
+        loadingAction: AuthLoadingAction.none,
         errorMessage: 'Invalid credentials. Please check your login details.',
       );
       return const LoginError(
@@ -219,18 +250,30 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       );
     } on AuthException catch (e) {
       final msg = _mapAuthException(e);
-      state = state.copyWith(isLoading: false, errorMessage: msg);
+      state = state.copyWith(
+        isLoading: false,
+        loadingAction: AuthLoadingAction.none,
+        errorMessage: msg,
+      );
       return LoginError(msg);
     } on Exception catch (e) {
       final msg = e.toString();
-      state = state.copyWith(isLoading: false, errorMessage: msg);
+      state = state.copyWith(
+        isLoading: false,
+        loadingAction: AuthLoadingAction.none,
+        errorMessage: msg,
+      );
       return LoginError(msg);
     }
   }
 
   /// Sign in with WebAuthn passkey.
   Future<LoginResult> signInWithPasskey({String? captchaToken}) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      loadingAction: AuthLoadingAction.passkey,
+      clearError: true,
+    );
     try {
       final res = await authService.signInWithPasskey(
         captchaToken: captchaToken,
@@ -247,11 +290,19 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       }
 
       const msg = 'No matching passkey found on this device.';
-      state = state.copyWith(isLoading: false, errorMessage: msg);
+      state = state.copyWith(
+        isLoading: false,
+        loadingAction: AuthLoadingAction.none,
+        errorMessage: msg,
+      );
       return const LoginError(msg);
     } on Object catch (e) {
       final friendlyError = SupabaseAuthService.mapPasskeyError(e);
-      state = state.copyWith(isLoading: false, errorMessage: friendlyError);
+      state = state.copyWith(
+        isLoading: false,
+        loadingAction: AuthLoadingAction.none,
+        errorMessage: friendlyError,
+      );
       return LoginError(friendlyError);
     }
   }
@@ -262,7 +313,11 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
     String? iosClientId,
     String? redirectTo,
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      loadingAction: AuthLoadingAction.google,
+      clearError: true,
+    );
     try {
       final res = await authService.signInWithGoogle(
         webClientId: webClientId,
@@ -280,11 +335,18 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
         return _loginResultFromState();
       }
 
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(
+        isLoading: false,
+        loadingAction: AuthLoadingAction.none,
+      );
       return const LoginSuccess(); // OAuth redirect flow — result comes later
     } on Object catch (e) {
       final msg = e is AuthException ? e.message : e.toString();
-      state = state.copyWith(isLoading: false, errorMessage: msg);
+      state = state.copyWith(
+        isLoading: false,
+        loadingAction: AuthLoadingAction.none,
+        errorMessage: msg,
+      );
       return LoginError(msg);
     }
   }

@@ -1,3 +1,4 @@
+import 'package:campverse/core/models/auth_user.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -45,6 +46,10 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final isPasswordLoading =
+        authState.isLoading &&
+        authState.loadingAction == AuthLoadingAction.password;
+    final isAnyLoading = authState.isLoading;
 
     return AutofillGroup(
       child: Form(
@@ -54,6 +59,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           children: [
             TextFormField(
               controller: _emailController,
+              enabled: !isAnyLoading,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               autofillHints: const [
@@ -78,6 +84,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _passwordController,
+              enabled: !isAnyLoading,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _submit(),
@@ -97,11 +104,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                         : Icons.visibility_rounded,
                     color: AppColors.textSecondary,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+                  onPressed: isAnyLoading
+                      ? null
+                      : () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
                 ),
               ),
               validator: (value) {
@@ -111,52 +120,62 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                 return null;
               },
             ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Password recovery instructions sent to email.',
-                    ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: isAnyLoading
+                    ? null
+                    : () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Password recovery instructions sent to email.',
+                            ),
+                          ),
+                        );
+                      },
+                child: const Text(
+                  'Forgot password?',
+                  style: TextStyle(
+                    color: AppColors.primaryLight,
+                    fontSize: 13,
                   ),
-                );
-              },
-              child: const Text(
-                'Forgot password?',
-                style: TextStyle(
-                  color: AppColors.primaryLight,
-                  fontSize: 13,
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: authState.isLoading ? null : _submit,
-            child: authState.isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: isAnyLoading ? null : _submit,
+              child: isPasswordLoading
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Text('Signing In...'),
+                      ],
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Sign In'),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
                     ),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Sign In'),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, size: 18),
-                    ],
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
-}
+

@@ -2,6 +2,21 @@ import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/models/passkey_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Discriminator indicating which authentication method is in progress.
+enum AuthLoadingAction {
+  /// No authentication operation is running.
+  none,
+
+  /// Password-based sign-in is currently processing.
+  password,
+
+  /// WebAuthn passkey authentication is currently processing.
+  passkey,
+
+  /// Google OAuth sign-in is currently processing.
+  google,
+}
+
 /// Representation of the authenticated user's state.
 class AuthUserState {
   /// Default constructor for immutable authentication state.
@@ -13,12 +28,14 @@ class AuthUserState {
     this.activeRole,
     this.isMfaPending = false,
     this.isLoading = false,
+    this.loadingAction = AuthLoadingAction.none,
     this.errorMessage,
     this.userPasskeys = const [],
     this.isLoadingPasskeys = false,
     this.accountNotFound = false,
     this.accountSuspended = false,
   });
+
 
   /// Active Supabase session if authenticated.
   final Session? session;
@@ -43,6 +60,9 @@ class AuthUserState {
 
   /// True if an authentication network operation is running.
   final bool isLoading;
+
+  /// The specific authentication action currently in progress.
+  final AuthLoadingAction loadingAction;
 
   /// User-facing error message if any.
   final String? errorMessage;
@@ -77,6 +97,7 @@ class AuthUserState {
     AppRole? activeRole,
     bool? isMfaPending,
     bool? isLoading,
+    AuthLoadingAction? loadingAction,
     String? errorMessage,
     List<AppPasskey>? userPasskeys,
     bool? isLoadingPasskeys,
@@ -94,6 +115,7 @@ class AuthUserState {
       activeRole: clearActiveRole ? null : (activeRole ?? this.activeRole),
       isMfaPending: isMfaPending ?? this.isMfaPending,
       isLoading: isLoading ?? this.isLoading,
+      loadingAction: loadingAction ?? (isLoading == false ? AuthLoadingAction.none : this.loadingAction),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       userPasskeys: userPasskeys ?? this.userPasskeys,
       isLoadingPasskeys: isLoadingPasskeys ?? this.isLoadingPasskeys,
@@ -102,3 +124,4 @@ class AuthUserState {
     );
   }
 }
+

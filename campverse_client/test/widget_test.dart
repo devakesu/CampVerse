@@ -45,6 +45,28 @@ void main() {
       const state2 = AuthUserState();
       expect(state2.hasMultipleRoles, isFalse);
     });
+
+    test('AuthUserState handles loadingAction and copyWith accurately', () {
+      const initial = AuthUserState();
+      expect(initial.loadingAction, AuthLoadingAction.none);
+
+      final passwordLoading = initial.copyWith(
+        isLoading: true,
+        loadingAction: AuthLoadingAction.password,
+      );
+      expect(passwordLoading.isLoading, isTrue);
+      expect(passwordLoading.loadingAction, AuthLoadingAction.password);
+
+      final passkeyLoading = initial.copyWith(
+        isLoading: true,
+        loadingAction: AuthLoadingAction.passkey,
+      );
+      expect(passkeyLoading.loadingAction, AuthLoadingAction.passkey);
+
+      final resetState = passwordLoading.copyWith(isLoading: false);
+      expect(resetState.isLoading, isFalse);
+      expect(resetState.loadingAction, AuthLoadingAction.none);
+    });
   });
 
   group('WebAuthn Passkey Model & Error Translation Tests', () {
@@ -114,3 +136,4 @@ void main() {
     });
   });
 }
+

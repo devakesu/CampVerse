@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:campverse/core/config/app_config.dart';
+import 'package:campverse/core/models/auth_user.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,10 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final isDark = AppColors.isDark(context);
-    final isLoading = authState.isLoading;
+    final isGoogleLoading =
+        authState.isLoading &&
+        authState.loadingAction == AuthLoadingAction.google;
+    final isAnyLoading = authState.isLoading;
 
     final hoverBorder =
         isDark ? const Color(0xFF4285F4) : const Color(0xFF2563EB);
@@ -30,84 +34,87 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor:
-          isLoading ? SystemMouseCursors.basic : SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC))
-              : AppColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: _isHovered
-                ? hoverBorder
-                : AppColors.borderOf(context),
-            width: _isHovered ? 1.4 : 1.2,
-          ),
-          boxShadow: [
-            if (_isHovered)
-              BoxShadow(
-                color: hoverBorder.withValues(alpha: isDark ? 0.25 : 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
+          isAnyLoading ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      child: Opacity(
+        opacity: isAnyLoading && !isGoogleLoading ? 0.55 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          decoration: BoxDecoration(
+            color: _isHovered && !isAnyLoading
+                ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC))
+                : AppColors.surfaceOf(context),
             borderRadius: BorderRadius.circular(14),
-            onTap: isLoading
-                ? null
-                : () {
-                    unawaited(
-                      ref.read(authStateProvider.notifier).signInWithGoogle(
-                        webClientId: AppConfig.googleWebClientId.isNotEmpty
-                            ? AppConfig.googleWebClientId
-                            : null,
-                        iosClientId: AppConfig.googleIosClientId.isNotEmpty
-                            ? AppConfig.googleIosClientId
-                            : null,
+            border: Border.all(
+              color: _isHovered && !isAnyLoading
+                  ? hoverBorder
+                  : AppColors.borderOf(context),
+              width: _isHovered && !isAnyLoading ? 1.4 : 1.2,
+            ),
+            boxShadow: [
+              if (_isHovered && !isAnyLoading)
+                BoxShadow(
+                  color: hoverBorder.withValues(alpha: isDark ? 0.25 : 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: isAnyLoading
+                  ? null
+                  : () {
+                      unawaited(
+                        ref.read(authStateProvider.notifier).signInWithGoogle(
+                          webClientId: AppConfig.googleWebClientId.isNotEmpty
+                              ? AppConfig.googleWebClientId
+                              : null,
+                          iosClientId: AppConfig.googleIosClientId.isNotEmpty
+                              ? AppConfig.googleIosClientId
+                              : null,
+                        ),
+                      );
+                    },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isGoogleLoading) ...[
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Color(0xFF4285F4),
+                        ),
                       ),
-                    );
-                  },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (isLoading) ...[
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: Color(0xFF4285F4),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Connecting with Google...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimaryOf(context),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Connecting with Google...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimaryOf(context),
+                    ] else ...[
+                      const _GoogleIcon(),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimaryOf(context),
+                          letterSpacing: -0.1,
+                        ),
                       ),
-                    ),
-                  ] else ...[
-                    const _GoogleIcon(),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Continue with Google',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimaryOf(context),
-                        letterSpacing: -0.1,
-                      ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -116,6 +123,7 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
     );
   }
 }
+
 
 class _GoogleIcon extends StatelessWidget {
   const _GoogleIcon();

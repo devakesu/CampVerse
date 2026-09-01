@@ -11,11 +11,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     adb \
     build-essential \
     ca-certificates \
+    caddy \
+    clang \
+    cmake \
     curl \
     git \
     gnupg \
     jq \
     lcov \
+    libgtk-3-dev \
+    liblzma-dev \
+    libnss3-tools \
+    mesa-utils \
+    ninja-build \
     openjdk-21-jdk-headless \
     pkg-config \
     python3 \
@@ -172,7 +180,14 @@ fi
 
 # --- 6. MONOREPO DEPENDENCIES SYNCHRONIZATION ---
 # Flutter Client Sync
-if [ -d "$TARGET_DIR/apps/flutter" ] && command -v flutter >/dev/null 2>&1; then 
+if command -v flutter >/dev/null 2>&1; then
+    flutter config --enable-linux-desktop >/dev/null 2>&1 || true
+fi
+
+if [ -d "$TARGET_DIR/campverse_client" ] && command -v flutter >/dev/null 2>&1; then 
+    echo "🐦 Synchronizing Flutter Client packages..."
+    (cd "$TARGET_DIR/campverse_client" && flutter pub get)
+elif [ -d "$TARGET_DIR/apps/flutter" ] && command -v flutter >/dev/null 2>&1; then
     echo "🐦 Synchronizing Flutter Client packages..."
     (cd "$TARGET_DIR/apps/flutter" && flutter pub get)
 fi
@@ -240,5 +255,5 @@ RUN groupadd -g 989 docker-host 2>/dev/null || true \
 # 5. User Environment Defaults & Entrypoint
 USER vscode
 WORKDIR /campverse
-EXPOSE 3000 8000 8080 8181 54321 54322 54323
+EXPOSE 80 3000 8000 8080 8181 54321 54322 54323
 CMD ["sleep", "infinity"]

@@ -52,11 +52,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return RouteNames.twoFactor;
       }
 
-      // 5. Authenticated + MFA cleared but no active role resolved yet
-      //    (This should be transient — _processSession sets activeRole = baseRole)
+      // 5. Authenticated + MFA cleared but still determining active role
       if (authState.activeRole == null) {
-        if (currentLoc == RouteNames.rolePicker) return null;
-        return RouteNames.rolePicker;
+        if (currentLoc == RouteNames.login) return null;
+        return null;
       }
 
       final activeRole = authState.activeRole!;
@@ -65,19 +64,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // 6. Security settings are accessible from any authenticated role
       if (currentLoc == RouteNames.securitySettings) return null;
 
-      // 7. Role picker accessible for multi-role users who want to switch
-      if (currentLoc == RouteNames.rolePicker && authState.hasMultipleRoles) {
-        return null;
-      }
-
-      // 8. If the user is on any auth/onboarding screen, route to workspace
+      // 7. If user is on any auth / onboarding / picker screen, route directly to workspace
       if (currentLoc == RouteNames.login ||
           currentLoc == RouteNames.twoFactor ||
           currentLoc == RouteNames.rolePicker) {
         return expectedRoot;
       }
 
-      // 9. Cross-role route spoofing guard:
+      // 8. Cross-role route spoofing guard:
       //    Prevent a user from navigating to another role's workspace path.
       final allRoleRoots = AppRole.values.map((r) => r.routeRoot).toList();
       final isVisitingAnotherRole = allRoleRoots.any(
@@ -87,6 +81,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (isVisitingAnotherRole) {
         return expectedRoot;
       }
+
 
       return null;
     },

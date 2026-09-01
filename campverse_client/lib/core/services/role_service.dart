@@ -207,10 +207,13 @@ class RoleService {
             (d) => d as List<dynamic>,
           );
           if (apiResp.success && apiResp.data != null) {
-            return apiResp.data!
+            final roles = apiResp.data!
                 .map((r) => AppRole.fromDbString(r.toString()))
                 .toSet()
                 .toList();
+            if (roles.isNotEmpty) {
+              return roles;
+            }
           }
         }
       }
@@ -226,16 +229,19 @@ class RoleService {
           'get_user_derived_roles',
           params: {'target_uid': user.id},
         );
-        return result
+        final roles = result
             .map((r) => AppRole.fromDbString(r.toString()))
             .toSet()
             .toList();
+        if (roles.isNotEmpty) {
+          return roles;
+        }
       }
     } on Exception {
-      // Return default student fallback
+      // Fall through to empty return
     }
 
-    return [AppRole.student];
+    return [];
   }
 
   // ── Set Active Role ────────────────────────────────────────────────────────
@@ -293,7 +299,6 @@ class RoleService {
           data: {'active_role': targetRole.dbValue},
         ),
       );
-      await _supabase.auth.refreshSession();
       return const ApiResponse<String>(
         success: true,
         message: 'Role set successfully',
