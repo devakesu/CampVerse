@@ -2,10 +2,12 @@ import 'dart:async';
 import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/providers/theme_provider.dart';
+import 'package:campverse/core/router/route_names.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:campverse/core/widgets/brand_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Mobile slide-out drawer providing secondary workspace tools and role
 /// switching.
@@ -184,6 +186,25 @@ class AdaptiveDrawer extends ConsumerWidget {
               ),
               child: Column(
                 children: [
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.shield_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: Text(
+                      'Security & 2FA',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimaryOf(context),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      unawaited(context.push(RouteNames.securitySettings));
+                    },
+                  ),
                   ListTile(
                     dense: true,
                     leading: Icon(

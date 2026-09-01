@@ -5,8 +5,11 @@ class RouteNames {
   /// Login screen path.
   static const String login = '/login';
 
-  /// Two-Factor authentication screen path.
+  /// Two-Factor authentication challenge screen path.
   static const String twoFactor = '/2fa';
+
+  /// Account Security & 2FA Management screen path (all roles).
+  static const String securitySettings = '/security';
 
   /// Multi-role workspace picker path.
   static const String rolePicker = '/role-picker';

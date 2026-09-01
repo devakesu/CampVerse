@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/models/auth_user.dart';
+import 'package:campverse/core/models/login_result.dart';
 import 'package:campverse/core/services/role_service.dart';
 import 'package:campverse/core/services/secure_storage_service.dart';
 import 'package:campverse/core/services/supabase_auth_service.dart';
@@ -22,9 +24,10 @@ final roleServiceProvider = Provider<RoleService>((ref) {
   return RoleService();
 });
 
-/// Central state notifier provider managing authentication and roles.
-final authStateProvider =
-    StateNotifierProvider<AuthNotifier, AuthUserState>((ref) {
+/// Central state notifier provider managing auth, passkeys, and roles.
+final authStateProvider = StateNotifierProvider<AuthNotifier, AuthUserState>((
+  ref,
+) {
   return AuthNotifier(
     authService: ref.read(supabaseAuthServiceProvider),
     roleService: ref.read(roleServiceProvider),
@@ -32,7 +35,8 @@ final authStateProvider =
   );
 });
 
-/// StateNotifier orchestrating authentication flows, MFA, and role state.
+/// StateNotifier orchestrating authentication flows, MFA, role management,
+/// and the 30-minute role-switch TTL restore behavior.
 class AuthNotifier extends StateNotifier<AuthUserState> {
   /// Default constructor for AuthNotifier.
   AuthNotifier({
@@ -57,8 +61,9 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
   void _init() {
     unawaited(_processSession(authService.currentSession));
 
-    _authSubscription =
-        authService.client.auth.onAuthStateChange.listen((data) {
+    _authSubscription = authService.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
       final event = data.event;
       final session = data.session;
 
@@ -72,6 +77,15 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
     });
   }
 
+  /// Clear any active error message banner.
+  void clearError() {
+    if (state.errorMessage != null) {
+      state = state.copyWith(clearError: true);
+    }
+  }
+
+  // ── Session Processing ─────────────────────────────────────────────────────
+
   Future<void> _processSession(Session? session) async {
     if (session == null) {
       state = const AuthUserState();
@@ -82,10 +96,33 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       isLoading: true,
       session: session,
       user: session.user,
+      clearError: true,
+      clearAccountFlags: true,
     );
 
     try {
-      // 1. Check MFA status
+      // 1. Validate login eligibility (profile exists, account active)
+      final loginStatus = await roleService.checkLoginStatus(
+        session.accessToken,
+      );
+
+      if (!loginStatus.allowed) {
+        // Sign out immediately — no valid institutional profile
+        await authService.signOut();
+        await storageService.clearAll();
+
+        state = AuthUserState(
+          accountNotFound:
+              loginStatus.isNoProfile ||
+              loginStatus.isPendingVerification ||
+              loginStatus.isAlumni,
+          accountSuspended: loginStatus.isSuspended,
+          errorMessage: loginStatus.message,
+        );
+        return;
+      }
+
+      // 2. Check MFA status
       final factors = await authService.getEnrolledMfaFactors();
       if (factors.isNotEmpty) {
         final isVerified = await storageService.isMfaVerifiedForSession(
@@ -100,14 +137,31 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
         }
       }
 
-      // 2. Fetch server-derived authorized roles
+      // 3. Fetch server-derived authorized roles
       final roles = await roleService.resolveUserRoles(session.accessToken);
-      final baseRole = roles.isNotEmpty ? roles.first : AppRole.student;
 
-      // 3. Extract active role from JWT claim
-      var activeRole = authService.extractActiveRoleFromJwt(session);
+      // 4. Determine base role from login-status response (server-authoritative)
+      //    Always start the session with base_role — role picker / switches
+      //    are user-initiated after login.
+      final baseRole =
+          loginStatus.baseRole ??
+          (roles.isNotEmpty ? roles.first : AppRole.student);
 
-      // If user only has 1 role, active role is always that role
+      // 5. Restore switched role if within 30-minute TTL window
+      var activeRole = baseRole;
+      final restoredRoleStr = await storageService.getRestoredRoleIfValid();
+      if (restoredRoleStr != null) {
+        final restoredRole = AppRole.fromDbString(restoredRoleStr);
+        // Only restore if the role is still in the user's authorized roles
+        if (roles.contains(restoredRole)) {
+          activeRole = restoredRole;
+        } else {
+          // Role no longer authorized — clear the stale switch
+          await storageService.clearRoleSwitch();
+        }
+      }
+
+      // Single-role users always use their only role
       if (roles.length == 1) {
         activeRole = roles.first;
       }
@@ -121,7 +175,11 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
         isMfaPending: false,
         isLoading: false,
         clearError: true,
+        clearAccountFlags: true,
       );
+
+      // Fetch user's registered passkeys in background
+      unawaited(loadUserPasskeys());
     } on Exception catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -130,64 +188,229 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
     }
   }
 
+  // ── Sign-In Methods ────────────────────────────────────────────────────────
+
   /// Sign in with email/username + password.
-  Future<bool> signInWithPassword({
+  ///
+  /// Returns a [LoginResult] describing the outcome so the UI can
+  /// distinguish "no account" from credential errors or MFA requirements.
+  Future<LoginResult> signInWithPassword({
     required String email,
     required String password,
+    String? captchaToken,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final res = await authService.signInWithPassword(
         email: email,
         password: password,
+        captchaToken: captchaToken,
       );
       if (res.session != null) {
         await _processSession(res.session);
-        return true;
+        return _loginResultFromState();
       }
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Invalid credentials. Please check your login details.',
       );
-      return false;
-    } on Exception catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e is AuthException ? e.message : e.toString(),
+      return const LoginError(
+        'Invalid credentials. Please check your login details.',
       );
-      return false;
+    } on AuthException catch (e) {
+      final msg = _mapAuthException(e);
+      state = state.copyWith(isLoading: false, errorMessage: msg);
+      return LoginError(msg);
+    } on Exception catch (e) {
+      final msg = e.toString();
+      state = state.copyWith(isLoading: false, errorMessage: msg);
+      return LoginError(msg);
     }
   }
 
-  /// Sign in with biometric passkey.
-  Future<bool> signInWithPasskey() async {
+  /// Sign in with WebAuthn passkey.
+  Future<LoginResult> signInWithPasskey({String? captchaToken}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final authenticated = await authService.authenticateWithBiometrics();
-      if (!authenticated) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: 'Biometric verification cancelled or failed.',
-        );
-        return false;
+      final res = await authService.signInWithPasskey(
+        captchaToken: captchaToken,
+      );
+      if (res.session != null) {
+        await _processSession(res.session);
+        return _loginResultFromState();
       }
 
       final currentSession = authService.currentSession;
       if (currentSession != null) {
         await _processSession(currentSession);
-        return true;
+        return _loginResultFromState();
       }
 
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: 'No stored passkey credentials found on this device.',
+      const msg = 'No matching passkey found on this device.';
+      state = state.copyWith(isLoading: false, errorMessage: msg);
+      return const LoginError(msg);
+    } on Object catch (e) {
+      final friendlyError = SupabaseAuthService.mapPasskeyError(e);
+      state = state.copyWith(isLoading: false, errorMessage: friendlyError);
+      return LoginError(friendlyError);
+    }
+  }
+
+  /// Sign in with Google (OAuth / Native ID token).
+  Future<LoginResult> signInWithGoogle({
+    String? webClientId,
+    String? iosClientId,
+    String? redirectTo,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final res = await authService.signInWithGoogle(
+        webClientId: webClientId,
+        iosClientId: iosClientId,
+        redirectTo: redirectTo,
       );
-      return false;
-    } on Exception catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      if (res?.session != null) {
+        await _processSession(res!.session);
+        return _loginResultFromState();
+      }
+
+      final currentSession = authService.currentSession;
+      if (currentSession != null) {
+        await _processSession(currentSession);
+        return _loginResultFromState();
+      }
+
+      state = state.copyWith(isLoading: false);
+      return const LoginSuccess(); // OAuth redirect flow — result comes later
+    } on Object catch (e) {
+      final msg = e is AuthException ? e.message : e.toString();
+      state = state.copyWith(isLoading: false, errorMessage: msg);
+      return LoginError(msg);
+    }
+  }
+
+  /// Derives a [LoginResult] from current state after [_processSession].
+  LoginResult _loginResultFromState() {
+    if (state.accountNotFound) return const LoginNoAccount();
+    if (state.accountSuspended) return const LoginSuspended();
+    if (state.isMfaPending) return const LoginMfaPending();
+    if (state.session != null) return const LoginSuccess();
+    return LoginError(state.errorMessage ?? 'Login failed.');
+  }
+
+  /// Maps Supabase [AuthException] codes to user-friendly messages.
+  static String _mapAuthException(AuthException e) {
+    switch (e.code) {
+      case 'invalid_credentials':
+        return 'Invalid email or password. Please check your credentials.';
+      case 'email_not_confirmed':
+        return 'Account email is not confirmed. Please check your inbox.';
+      case 'user_banned':
+        return 'This account has been suspended by your institution admin.';
+      case 'too_many_requests':
+        return 'Too many login attempts. Please wait a moment and try again.';
+      default:
+        return e.message;
+    }
+  }
+
+  // ── Passkeys ───────────────────────────────────────────────────────────────
+
+  /// Loads the registered passkeys for the current authenticated user.
+  Future<void> loadUserPasskeys() async {
+    if (state.session == null) return;
+
+    state = state.copyWith(isLoadingPasskeys: true);
+    try {
+      final passkeys = await authService.listPasskeys();
+      state = state.copyWith(
+        userPasskeys: passkeys,
+        isLoadingPasskeys: false,
+      );
+    } on Object {
+      state = state.copyWith(isLoadingPasskeys: false);
+    }
+  }
+
+  /// Registers a new WebAuthn passkey for the current account.
+  Future<bool> registerPasskey({String? friendlyName}) async {
+    state = state.copyWith(isLoadingPasskeys: true, clearError: true);
+    try {
+      final newPasskey = await authService.registerPasskey(
+        friendlyName: friendlyName,
+      );
+      final updatedList = [newPasskey, ...state.userPasskeys];
+      state = state.copyWith(
+        userPasskeys: updatedList,
+        isLoadingPasskeys: false,
+      );
+      return true;
+    } on Object catch (e) {
+      final errorMsg = SupabaseAuthService.mapPasskeyError(e);
+      state = state.copyWith(
+        isLoadingPasskeys: false,
+        errorMessage: errorMsg,
+      );
       return false;
     }
   }
+
+  /// Renames an existing passkey.
+  Future<bool> updatePasskeyName({
+    required String passkeyId,
+    required String friendlyName,
+  }) async {
+    state = state.copyWith(isLoadingPasskeys: true, clearError: true);
+    try {
+      await authService.updatePasskeyName(
+        passkeyId: passkeyId,
+        friendlyName: friendlyName,
+      );
+      final updatedList = state.userPasskeys.map((p) {
+        if (p.id == passkeyId) {
+          return p.copyWith(friendlyName: friendlyName);
+        }
+        return p;
+      }).toList();
+      state = state.copyWith(
+        userPasskeys: updatedList,
+        isLoadingPasskeys: false,
+      );
+      return true;
+    } on Object catch (e) {
+      final errorMsg = SupabaseAuthService.mapPasskeyError(e);
+      state = state.copyWith(
+        isLoadingPasskeys: false,
+        errorMessage: errorMsg,
+      );
+      return false;
+    }
+  }
+
+  /// Deletes / revokes an existing passkey.
+  Future<bool> deletePasskey({required String passkeyId}) async {
+    state = state.copyWith(isLoadingPasskeys: true, clearError: true);
+    try {
+      await authService.deletePasskey(passkeyId: passkeyId);
+      final updatedList = state.userPasskeys
+          .where((p) => p.id != passkeyId)
+          .toList();
+      state = state.copyWith(
+        userPasskeys: updatedList,
+        isLoadingPasskeys: false,
+      );
+      return true;
+    } on Object catch (e) {
+      final errorMsg = SupabaseAuthService.mapPasskeyError(e);
+      state = state.copyWith(
+        isLoadingPasskeys: false,
+        errorMessage: errorMsg,
+      );
+      return false;
+    }
+  }
+
+  // ── MFA ────────────────────────────────────────────────────────────────────
 
   /// Verify TOTP code for MFA.
   Future<bool> verifyTotp({
@@ -246,7 +469,12 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
     }
   }
 
+  // ── Role Management ────────────────────────────────────────────────────────
+
   /// Switch the active role (server-validated).
+  ///
+  /// Persists the switch with a 30-minute TTL in secure storage.
+  /// After 30 minutes of app closure, the next open reverts to [baseRole].
   Future<bool> switchRole(AppRole targetRole) async {
     if (!state.availableRoles.contains(targetRole)) {
       state = state.copyWith(
@@ -258,9 +486,7 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final session = state.session;
-      if (session == null) {
-        return false;
-      }
+      if (session == null) return false;
 
       final res = await roleService.setActiveRole(
         accessToken: session.accessToken,
@@ -268,6 +494,13 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       );
 
       if (res.success) {
+        // Persist switch with TTL (base_role skips TTL storage — no need)
+        if (targetRole != state.baseRole) {
+          await storageService.storeRoleSwitch(targetRole.dbValue);
+        } else {
+          await storageService.clearRoleSwitch();
+        }
+
         state = state.copyWith(
           activeRole: targetRole,
           isLoading: false,
@@ -285,6 +518,8 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       return false;
     }
   }
+
+  // ── Sign Out ───────────────────────────────────────────────────────────────
 
   /// Sign out completely and clear cached keys.
   Future<void> signOut() async {

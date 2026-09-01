@@ -3,6 +3,7 @@ import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/router/route_names.dart';
 import 'package:campverse/features/auth/login/login_screen.dart';
 import 'package:campverse/features/auth/role_picker/role_picker_screen.dart';
+import 'package:campverse/features/auth/security/security_settings_screen.dart';
 import 'package:campverse/features/auth/two_factor/two_factor_screen.dart';
 import 'package:campverse/features/shell/club_admin_shell.dart';
 import 'package:campverse/features/shell/faculty_shell.dart';
@@ -26,46 +27,58 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authStateProvider);
       final currentLoc = state.uri.path;
 
-      // 1. If still resolving session, stay
+      // 1. Still resolving initial session → stay put
       if (authState.isLoading && authState.session == null) {
         return null;
       }
 
-      // 2. Unauthenticated -> force login
-      if (authState.session == null) {
-        if (currentLoc == RouteNames.login) {
-          return null;
-        }
+      // 2. Account flagged as "not found" or "suspended" → force back to login.
+      //    This guards against a race where a session token exists but the
+      //    profile check has already failed (e.g. mid-session suspension).
+      if (authState.accountNotFound || authState.accountSuspended) {
+        if (currentLoc == RouteNames.login) return null;
         return RouteNames.login;
       }
 
-      // 3. MFA pending -> force 2FA
+      // 3. Unauthenticated → force login
+      if (authState.session == null) {
+        if (currentLoc == RouteNames.login) return null;
+        return RouteNames.login;
+      }
+
+      // 4. MFA pending → force 2FA screen
       if (authState.isMfaPending) {
-        if (currentLoc == RouteNames.twoFactor) {
-          return null;
-        }
+        if (currentLoc == RouteNames.twoFactor) return null;
         return RouteNames.twoFactor;
       }
 
-      // 4. Authenticated, 2FA passed, but no active role selected
+      // 5. Authenticated + MFA cleared but no active role resolved yet
+      //    (This should be transient — _processSession sets activeRole = baseRole)
       if (authState.activeRole == null) {
-        if (currentLoc == RouteNames.rolePicker) {
-          return null;
-        }
+        if (currentLoc == RouteNames.rolePicker) return null;
         return RouteNames.rolePicker;
       }
 
       final activeRole = authState.activeRole!;
       final expectedRoot = activeRole.routeRoot;
 
-      // 5. If user is on an auth screen, route them to their workspace
+      // 6. Security settings are accessible from any authenticated role
+      if (currentLoc == RouteNames.securitySettings) return null;
+
+      // 7. Role picker accessible for multi-role users who want to switch
+      if (currentLoc == RouteNames.rolePicker && authState.hasMultipleRoles) {
+        return null;
+      }
+
+      // 8. If the user is on any auth/onboarding screen, route to workspace
       if (currentLoc == RouteNames.login ||
           currentLoc == RouteNames.twoFactor ||
           currentLoc == RouteNames.rolePicker) {
         return expectedRoot;
       }
 
-      // 6. Security guard: prevent route spoofing across roles
+      // 9. Cross-role route spoofing guard:
+      //    Prevent a user from navigating to another role's workspace path.
       final allRoleRoots = AppRole.values.map((r) => r.routeRoot).toList();
       final isVisitingAnotherRole = allRoleRoots.any(
         (root) => currentLoc.startsWith(root) && root != expectedRoot,
@@ -78,7 +91,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      // Auth routes
+      // ── Auth routes ────────────────────────────────────────────────────────
       GoRoute(
         path: RouteNames.login,
         builder: (context, state) => const LoginScreen(),
@@ -88,11 +101,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TwoFactorScreen(),
       ),
       GoRoute(
+        path: RouteNames.securitySettings,
+        builder: (context, state) => const SecuritySettingsScreen(),
+      ),
+      GoRoute(
         path: RouteNames.rolePicker,
         builder: (context, state) => const RolePickerScreen(),
       ),
 
-      // Role workspace shells
+      // ── Role workspace shells ──────────────────────────────────────────────
       GoRoute(
         path: RouteNames.superAdmin,
         builder: (context, state) => const SuperAdminShell(),

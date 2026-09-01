@@ -1,14 +1,26 @@
+import 'dart:async';
+
 import 'package:campverse/core/config/app_config.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/providers/theme_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:campverse/core/utils/responsive_layout.dart';
 import 'package:campverse/core/widgets/brand_logo.dart';
+import 'package:campverse/features/auth/login/widgets/google_sign_in_button.dart';
 import 'package:campverse/features/auth/login/widgets/login_form.dart';
 import 'package:campverse/features/auth/login/widgets/passkey_button.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+/// Launches a URL, silently ignoring failures.
+Future<void> _launchUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
 /// Redesigned adaptive login screen supporting credentials and passkeys.
 class LoginScreen extends ConsumerWidget {
@@ -113,9 +125,9 @@ class LoginScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Empowering universities, institutes, departments, '
-                      'faculty, and students with role-tailored workspaces and '
-                      'real-time collaboration.',
+                      'The all-in-one system engineered for '
+                      'modern institutions, seamless event workflows, '
+                      'secure operations, and connected campus communities.',
                       style: TextStyle(
                         fontSize: 15,
                         height: 1.6,
@@ -251,8 +263,22 @@ class LoginScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // Error message banner if any
-          if (authState.errorMessage != null) ...[
+          // ── Account-not-found banner ────────────────────────────────────────
+          if (authState.accountNotFound) ...[
+            _buildNoAccountBanner(context),
+            const SizedBox(height: 16),
+          ],
+
+          // ── Account suspended banner ────────────────────────────────────────
+          if (authState.accountSuspended) ...[
+            _buildSuspendedBanner(context),
+            const SizedBox(height: 16),
+          ],
+
+          // ── Generic error banner ────────────────────────────────────────────
+          if (!authState.accountNotFound &&
+              !authState.accountSuspended &&
+              authState.errorMessage != null) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -287,8 +313,10 @@ class LoginScreen extends ConsumerWidget {
           ],
 
           const PasskeyButton(),
+          const SizedBox(height: 12),
+          const GoogleSignInButton(),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
@@ -297,11 +325,12 @@ class LoginScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
-                  'OR',
+                  'OR CONTINUE WITH PASSWORD',
                   style: TextStyle(
                     color: AppColors.textMutedOf(context),
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
@@ -311,13 +340,128 @@ class LoginScreen extends ConsumerWidget {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           const LoginForm(),
         ],
       ),
     );
   }
+
+  // ── Institutional Contact Banners ─────────────────────────────────────────
+
+  /// Banner shown when no institutional profile was found for the credential.
+  Widget _buildNoAccountBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Color(0xFF3B82F6),
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: Color(0xFF3B82F6),
+                  fontWeight: FontWeight.w500,
+                ),
+                children: [
+                  const TextSpan(
+                    text:
+                        "No account found. If you're a student or faculty, "
+                        'contact your institution admin. '
+                        'Otherwise, ',
+                  ),
+                  TextSpan(
+                    text: 'Contact Us →',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => unawaited(
+                        _launchUrl(AppConfig.contactUsUrl),
+                      ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Banner shown when the account has been suspended by an administrator.
+  Widget _buildSuspendedBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.amber.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.block_rounded,
+            color: Colors.amber,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: Colors.amber,
+                  fontWeight: FontWeight.w500,
+                ),
+                children: [
+                  const TextSpan(
+                    text:
+                        'Your account has been suspended. '
+                        'Please contact your institution admin or ',
+                  ),
+                  TextSpan(
+                    text: 'reach out to us →',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => unawaited(
+                        _launchUrl(AppConfig.contactUsUrl),
+                      ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Shared UI Helpers ─────────────────────────────────────────────────────
 
   Widget _buildFeatureItem(
     BuildContext context, {
@@ -433,12 +577,7 @@ class LoginScreen extends ConsumerWidget {
         MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
-            onTap: () async {
-              final uri = Uri.parse('https://devakesu.com');
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
+            onTap: () => unawaited(_launchUrl('https://devakesu.com')),
             child: Text(
               '@devakesu',
               style: TextStyle(
@@ -456,55 +595,64 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 
+  /// A footer link that opens a URL directly (or a placeholder dialog if empty).
   Widget _buildFooterLink(
     BuildContext context, {
     required IconData icon,
     required String label,
-    required String placeholderDialogTitle,
+    String? url,
+    String? placeholderDialogTitle,
   }) {
+    Future<void> onTap() async {
+      if (url != null && url.isNotEmpty) {
+        await _launchUrl(url);
+        return;
+      }
+      // Fallback placeholder dialog
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: AppColors.surfaceOf(ctx),
+          title: Row(
+            children: [
+              Icon(icon, size: 20, color: AppColors.primaryOf(ctx)),
+              const SizedBox(width: 8),
+              Text(
+                placeholderDialogTitle ?? label,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimaryOf(ctx),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            '${placeholderDialogTitle ?? label} documentation is currently '
+            'being finalized. Please check back in an upcoming release.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: AppColors.textSecondaryOf(ctx),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () async {
-          await showDialog<void>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              backgroundColor: AppColors.surfaceOf(ctx),
-              title: Row(
-                children: [
-                  Icon(icon, size: 20, color: AppColors.primaryOf(ctx)),
-                  const SizedBox(width: 8),
-                  Text(
-                    placeholderDialogTitle,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimaryOf(ctx),
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                '$placeholderDialogTitle documentation is currently being '
-                'finalized. Please check back in an upcoming release.',
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: AppColors.textSecondaryOf(ctx),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Close'),
-                ),
-              ],
-            ),
-          );
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           child: Row(
@@ -565,7 +713,7 @@ class LoginScreen extends ConsumerWidget {
                   context,
                   icon: Icons.support_agent_rounded,
                   label: 'Contact Us',
-                  placeholderDialogTitle: 'Contact Support',
+                  url: AppConfig.contactUsUrl,
                 ),
               ],
             ),
@@ -607,7 +755,7 @@ class LoginScreen extends ConsumerWidget {
               context,
               icon: Icons.support_agent_rounded,
               label: 'Contact Us',
-              placeholderDialogTitle: 'Contact Support',
+              url: AppConfig.contactUsUrl,
             ),
           ],
         ),

@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/providers/theme_provider.dart';
+import 'package:campverse/core/router/route_names.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:campverse/core/widgets/brand_logo.dart';
 import 'package:campverse/features/shell/base_role_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Permanent / collapsible desktop navigation sidebar.
 class DesktopSidebar extends ConsumerStatefulWidget {
@@ -278,6 +280,17 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                 ? Column(
                     children: [
                       IconButton(
+                        icon: const Icon(
+                          Icons.shield_outlined,
+                          size: 20,
+                        ),
+                        color: AppColors.textSecondaryOf(context),
+                        onPressed: () {
+                          unawaited(context.push(RouteNames.securitySettings));
+                        },
+                        tooltip: 'Security & 2FA',
+                      ),
+                      IconButton(
                         icon: Icon(
                           themeMode == ThemeMode.dark
                               ? Icons.light_mode_rounded
@@ -346,6 +359,17 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                             ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.shield_outlined,
+                          size: 19,
+                        ),
+                        color: AppColors.textSecondaryOf(context),
+                        onPressed: () {
+                          unawaited(context.push(RouteNames.securitySettings));
+                        },
+                        tooltip: 'Security & 2FA Settings',
                       ),
                       IconButton(
                         icon: Icon(

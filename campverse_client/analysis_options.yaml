@@ -16,6 +16,7 @@ analyzer:
     missing_return: error
     todo: ignore
     invalid_annotation_target: ignore
+    experimental_member_use: ignore
     unawaited_futures: error
     avoid_relative_lib_imports: error
     avoid_empty_else: error

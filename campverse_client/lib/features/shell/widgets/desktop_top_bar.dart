@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:campverse/core/models/app_role.dart';
 import 'package:campverse/core/providers/auth_provider.dart';
+import 'package:campverse/core/router/route_names.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Sleek top action bar for desktop / web workspace views.
 class DesktopTopBar extends ConsumerWidget implements PreferredSizeWidget {
@@ -228,6 +230,17 @@ class DesktopTopBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
             const SizedBox(width: 12),
           ],
+
+          // Security & 2FA Management Button
+          IconButton(
+            icon: const Icon(Icons.shield_outlined, size: 20),
+            color: AppColors.textSecondaryOf(context),
+            tooltip: 'Security & 2FA Settings',
+            onPressed: () {
+              unawaited(context.push(RouteNames.securitySettings));
+            },
+          ),
+          const SizedBox(width: 4),
 
           // Sign Out Button
           IconButton(
