@@ -78,7 +78,10 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
                       );
                     },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -103,13 +106,17 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
                     ] else ...[
                       const _GoogleIcon(),
                       const SizedBox(width: 12),
-                      Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimaryOf(context),
-                          letterSpacing: -0.1,
+                      Flexible(
+                        child: Text(
+                          'Continue with Google',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimaryOf(context),
+                            letterSpacing: -0.1,
+                          ),
                         ),
                       ),
                     ],

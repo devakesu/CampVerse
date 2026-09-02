@@ -66,11 +66,16 @@ class _PasskeyButtonState extends ConsumerState<PasskeyButton> {
                   ? null
                   : () {
                       unawaited(
-                        ref.read(authStateProvider.notifier).signInWithPasskey(),
+                        ref
+                            .read(authStateProvider.notifier)
+                            .signInWithPasskey(),
                       );
                     },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -108,13 +113,17 @@ class _PasskeyButtonState extends ConsumerState<PasskeyButton> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        'Sign in with Passkey / Biometrics',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimaryOf(context),
-                          letterSpacing: -0.2,
+                      Flexible(
+                        child: Text(
+                          'Sign in with Passkey / Biometrics',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimaryOf(context),
+                            letterSpacing: -0.2,
+                          ),
                         ),
                       ),
                     ],
@@ -128,4 +137,3 @@ class _PasskeyButtonState extends ConsumerState<PasskeyButton> {
     );
   }
 }
-

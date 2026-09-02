@@ -29,7 +29,11 @@ class LoginScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDesktop = ResponsiveLayout.isDesktop(context);
+    // Show 2-pane split desktop layout on desktop screens
+    // (width >= tabletBreakpoint: 1100). On tablets and mobile, use the
+    // focused single-column layout.
+    final isSplitScreen =
+        MediaQuery.of(context).size.width >= ResponsiveLayout.tabletBreakpoint;
     final isDark = AppColors.isDark(context);
     final themeMode = ref.watch(themeModeProvider);
 
@@ -37,7 +41,7 @@ class LoginScreen extends ConsumerWidget {
       backgroundColor: AppColors.backgroundOf(context),
       body: Stack(
         children: [
-          if (isDesktop)
+          if (isSplitScreen)
             _buildDesktopLayout(context, ref)
           else
             _buildMobileLayout(context, ref),
@@ -92,10 +96,11 @@ class LoginScreen extends ConsumerWidget {
         // Left Branding & Metrics Panel
         Expanded(
           flex: 5,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 48),
+          child: DecoratedBox(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFEEF2FF),
+              color: isDark
+                  ? const Color(0xFF0F172A)
+                  : const Color(0xFFEEF2FF),
               border: Border(
                 right: BorderSide(
                   color: AppColors.borderOf(context),
@@ -103,72 +108,83 @@ class LoginScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Brand Header
-                const BrandLogo.wide(height: 152),
-
-                // Center Value Prop & Highlights
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Unified Campus Life,\nAcademics & Governance',
-                      style: Theme.of(context).textTheme.displayMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
-                            letterSpacing: -1,
-                          ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'The all-in-one system engineered for '
-                      'modern institutions, seamless event workflows, '
-                      'secure operations, and connected campus communities.',
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.6,
-                        color: AppColors.textSecondaryOf(context),
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-
-                    // Feature highlights list
-                    _buildFeatureItem(
-                      context,
-                      icon: Icons.hub_rounded,
-                      title: 'Dedicated Role Workspaces',
-                      description:
-                          'Tailored dashboards for Principals, HODs, '
-                          'Faculty, Unions, Clubs, and Students.',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFeatureItem(
-                      context,
-                      icon: Icons.shield_rounded,
-                      title: 'Zero-Knowledge Security & Privacy',
-                      description:
-                          'Field-level encryption, Tamper-proof passes, '
-                          'biometric MFA, cryptographically signed records.',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFeatureItem(
-                      context,
-                      icon: Icons.devices_rounded,
-                      title: 'Adaptive Multiplatform Experience',
-                      description:
-                          'Consistent high-density operations across web, '
-                          'Linux, Windows, macOS, Android & iOS.',
-                    ),
-                  ],
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 48,
+                  vertical: 40,
                 ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 580),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Brand Header
+                      const BrandLogo.wide(height: 120),
+                      const SizedBox(height: 36),
 
-                // Footer attribution & links
-                _buildDesktopFooter(context),
-              ],
+                      // Center Value Prop & Highlights
+                      Text(
+                        'Unified Campus Life,\nAcademics & Governance',
+                        style: Theme.of(context)
+                            .textTheme
+                            .displayMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                              letterSpacing: -1,
+                            ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'The all-in-one system engineered for '
+                        'modern institutions, seamless event workflows, '
+                        'secure operations, and connected campus '
+                        'communities.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.6,
+                          color: AppColors.textSecondaryOf(context),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Feature highlights list
+                      _buildFeatureItem(
+                        context,
+                        icon: Icons.hub_rounded,
+                        title: 'Dedicated Role Workspaces',
+                        description:
+                            'Tailored dashboards for Principals, HODs, '
+                            'Faculty, Unions, Clubs, and Students.',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFeatureItem(
+                        context,
+                        icon: Icons.shield_rounded,
+                        title: 'Zero-Knowledge Security & Privacy',
+                        description:
+                            'Field-level encryption, Tamper-proof passes, '
+                            'biometric MFA, cryptographically signed records.',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFeatureItem(
+                        context,
+                        icon: Icons.devices_rounded,
+                        title: 'Adaptive Multiplatform Experience',
+                        description:
+                            'Consistent high-density operations across web, '
+                            'Linux, Windows, macOS, Android & iOS.',
+                      ),
+                      const SizedBox(height: 48),
+
+                      // Footer attribution & links
+                      _buildDesktopFooter(context),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -178,7 +194,7 @@ class LoginScreen extends ConsumerWidget {
           flex: 5,
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: _buildAuthCard(context, ref),
@@ -226,9 +242,16 @@ class LoginScreen extends ConsumerWidget {
   Widget _buildAuthCard(BuildContext context, WidgetRef ref) {
     final isDark = AppColors.isDark(context);
     final authState = ref.watch(authStateProvider);
+    final width = MediaQuery.of(context).size.width;
+    final cardHorizontalPadding = width < 360
+        ? 14.0
+        : (width < 900 ? 20.0 : 30.0);
 
     return Container(
-      padding: const EdgeInsets.all(30),
+      padding: EdgeInsets.symmetric(
+        horizontal: cardHorizontalPadding,
+        vertical: width < 360 ? 20.0 : 30.0,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(20),
@@ -263,19 +286,19 @@ class LoginScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // ── Account-not-found banner ────────────────────────────────────────
+          // ── Account-not-found banner ───────────────────────────────────────
           if (authState.accountNotFound) ...[
             _buildNoAccountBanner(context),
             const SizedBox(height: 16),
           ],
 
-          // ── Account suspended banner ────────────────────────────────────────
+          // ── Account suspended banner ───────────────────────────────────────
           if (authState.accountSuspended) ...[
             _buildSuspendedBanner(context),
             const SizedBox(height: 16),
           ],
 
-          // ── Generic error banner ────────────────────────────────────────────
+          // ── Generic error banner ───────────────────────────────────────────
           if (!authState.accountNotFound &&
               !authState.accountSuspended &&
               authState.errorMessage != null) ...[
@@ -322,15 +345,22 @@ class LoginScreen extends ConsumerWidget {
               Expanded(
                 child: Divider(color: AppColors.borderOf(context)),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'OR CONTINUE WITH PASSWORD',
-                  style: TextStyle(
-                    color: AppColors.textMutedOf(context),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+              Flexible(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'OR CONTINUE WITH PASSWORD',
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: AppColors.textMutedOf(context),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -551,9 +581,13 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMadeWithSection(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildMadeWithSection(
+    BuildContext context, {
+    WrapAlignment alignment = WrapAlignment.center,
+  }) {
+    return Wrap(
+      alignment: alignment,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
           'Made with ',
@@ -595,7 +629,8 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 
-  /// A footer link that opens a URL directly (or a placeholder dialog if empty).
+  /// A footer link that opens a URL directly (or a placeholder dialog
+  /// if empty).
   Widget _buildFooterLink(
     BuildContext context, {
     required IconData icon,
@@ -688,8 +723,11 @@ class LoginScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              runSpacing: 4,
               children: [
                 _buildFooterLink(
                   context,
@@ -697,18 +735,14 @@ class LoginScreen extends ConsumerWidget {
                   label: 'Terms',
                   placeholderDialogTitle: 'Terms of Service',
                 ),
-                const SizedBox(width: 4),
                 _buildSeparator(context),
-                const SizedBox(width: 4),
                 _buildFooterLink(
                   context,
                   icon: Icons.privacy_tip_outlined,
                   label: 'Privacy',
                   placeholderDialogTitle: 'Privacy Policy',
                 ),
-                const SizedBox(width: 4),
                 _buildSeparator(context),
-                const SizedBox(width: 4),
                 _buildFooterLink(
                   context,
                   icon: Icons.support_agent_rounded,
@@ -717,8 +751,11 @@ class LoginScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            _buildMadeWithSection(context),
+            const SizedBox(height: 8),
+            _buildMadeWithSection(
+              context,
+              alignment: WrapAlignment.end,
+            ),
           ],
         ),
       ],

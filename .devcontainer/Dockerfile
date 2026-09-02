@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgtk-3-dev \
     liblzma-dev \
     libnss3-tools \
+    libsecret-1-dev \
+    gnome-keyring \
     mesa-utils \
     ninja-build \
     openjdk-21-jdk-headless \

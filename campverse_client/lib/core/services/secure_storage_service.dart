@@ -7,7 +7,6 @@ class SecureStorageService {
   /// Default constructor initializing encrypted preferences and keychain.
   SecureStorageService()
     : _storage = const FlutterSecureStorage(
-        aOptions: AndroidOptions(encryptedSharedPreferences: true),
         iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
       );
 
@@ -54,7 +53,7 @@ class SecureStorageService {
   ///
   /// Call this whenever the user explicitly switches to a non-base role.
   /// The timestamp is used on the next app open to decide whether to restore
-  /// the switched role or fall back to [baseRole].
+  /// the switched role or fall back to base role.
   Future<void> storeRoleSwitch(String role) async {
     final payload = jsonEncode({
       'role': role,
@@ -67,14 +66,18 @@ class SecureStorageService {
   /// otherwise returns `null` (caller should revert to base role).
   Future<String?> getRestoredRoleIfValid() async {
     final raw = await _storage.read(key: _keyRoleSwitchTtl);
-    if (raw == null) return null;
+    if (raw == null) {
+      return null;
+    }
 
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final role = decoded['role'] as String?;
       final switchedAt = decoded['switched_at'] as String?;
 
-      if (role == null || switchedAt == null) return null;
+      if (role == null || switchedAt == null) {
+        return null;
+      }
 
       final switchedTime = DateTime.parse(switchedAt);
       final elapsed = DateTime.now().toUtc().difference(switchedTime);
