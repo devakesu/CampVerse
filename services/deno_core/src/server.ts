@@ -1,6 +1,7 @@
 import { type Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { authRouter } from './routes/auth.ts';
+import { institutesRouter } from './routes/institutes.ts';
 
 const app = new Hono();
 
@@ -25,6 +26,10 @@ app.get('/health', (c: Context): Response => {
 // Mount Auth routes (accessible via direct proxy or /api gateway)
 app.route('/auth', authRouter);
 app.route('/api/auth', authRouter);
+
+// Mount Institutes routes (accessible via direct proxy or /api gateway)
+app.route('/institutes', institutesRouter);
+app.route('/api/institutes', institutesRouter);
 
 // Razorpay webhooks
 app.post('/webhooks/razorpay', (c: Context): Response => {

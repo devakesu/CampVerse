@@ -1,6 +1,8 @@
 import 'package:campverse/core/providers/super_admin_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
+import 'package:campverse/core/widgets/india_state_picker_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Screen for adding a new state or affiliating university.
@@ -36,14 +38,17 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
 
     setState(() => _isSubmitting = true);
 
+    final rawWebsite = _websiteController.text.trim();
+    final website = rawWebsite.isNotEmpty
+        ? 'https://${rawWebsite.replaceFirst(RegExp(r'^https?:\/\/', caseSensitive: false), '')}'
+        : null;
+
     final service = ref.read(superAdminServiceProvider);
     final result = await service.createUniversity(
       name: _nameController.text,
       slug: _slugController.text,
       state: _stateController.text,
-      website: _websiteController.text.isNotEmpty
-          ? _websiteController.text
-          : null,
+      website: website,
     );
 
     setState(() => _isSubmitting = false);
@@ -174,16 +179,8 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
                         const SizedBox(width: 16),
                         Expanded(
                           flex: 2,
-                          child: TextFormField(
+                          child: IndiaStatePickerFormField(
                             controller: _stateController,
-                            style: TextStyle(
-                              color: AppColors.textPrimaryOf(context),
-                            ),
-                            decoration: const InputDecoration(
-                              labelText: 'State / Province *',
-                              hintText: 'e.g. Kerala',
-                              prefixIcon: Icon(Icons.map_outlined),
-                            ),
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
                                 return 'State is required';
@@ -198,11 +195,22 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
                     TextFormField(
                       controller: _websiteController,
                       keyboardType: TextInputType.url,
+                      inputFormatters: const [
+                        _HttpsPrefixInputFormatter(),
+                      ],
                       style: TextStyle(color: AppColors.textPrimaryOf(context)),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Official Website URL',
-                        hintText: 'https://ktu.edu.in',
-                        prefixIcon: Icon(Icons.language_rounded),
+                        hintText: 'ktu.edu.in',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        prefixIcon: const Icon(Icons.language_rounded),
+                        prefixText: 'https://',
+                        prefixStyle: TextStyle(
+                          color: AppColors.textPrimaryOf(context)
+                              .withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -238,5 +246,29 @@ class _AddUniversityPageState extends ConsumerState<AddUniversityPage> {
         ),
       ),
     );
+  }
+}
+
+/// Strips any pasted or typed leading 'http://' or 'https://' from input
+/// so the immutable 'https://' prefix decoration is not duplicated.
+class _HttpsPrefixInputFormatter extends TextInputFormatter {
+  /// Default const constructor for [_HttpsPrefixInputFormatter].
+  const _HttpsPrefixInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    var text = newValue.text;
+    final prefixRegex = RegExp(r'^https?:\/\/', caseSensitive: false);
+    if (prefixRegex.hasMatch(text)) {
+      text = text.replaceFirst(prefixRegex, '');
+      return TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+    return newValue;
   }
 }

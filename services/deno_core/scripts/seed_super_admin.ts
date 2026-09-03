@@ -153,9 +153,7 @@ async function main() {
 
   // 2. Encrypt profile fields
   const fullNameEnc = await encryptAesGcm(name, fleMasterKey);
-  const emailEnc = await encryptAesGcm(email, fleMasterKey);
   const fullNameBidx = await computeBlindIndex(name, hmacPepper);
-  const emailBidx = await computeBlindIndex(email, hmacPepper);
 
   // Convert Uint8Array to Postgres bytea hex format (\x...)
   const toByteaHex = (bytes: Uint8Array) =>
@@ -169,8 +167,6 @@ async function main() {
     status: 'active',
     full_name_enc: toByteaHex(fullNameEnc),
     full_name_bidx: toByteaHex(fullNameBidx),
-    institutional_email_enc: toByteaHex(emailEnc),
-    institutional_email_bidx: toByteaHex(emailBidx),
     updated_at: new Date().toISOString(),
   });
 

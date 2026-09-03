@@ -5,13 +5,12 @@ CMD="$1"
 
 # Ensure DBUS session bus and GNOME Keyring are active for libsecret on Linux
 if [[ "$(uname)" == "Linux" ]]; then
-  if [[ -z "$DBUS_SESSION_BUS_ADDRESS" ]] || [[ ! -S "/tmp/dbus-session.sock" ]]; then
-    export DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/dbus-session.sock"
-    if [[ ! -S "/tmp/dbus-session.sock" ]]; then
-      dbus-daemon --session --address="$DBUS_SESSION_BUS_ADDRESS" --fork >/dev/null 2>&1 || true
-    fi
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/dbus-session.sock"
+  if ! dbus-send --session --dest=org.freedesktop.DBus --type=method_call /org/freedesktop/DBus org.freedesktop.DBus.ListNames >/dev/null 2>&1; then
+    rm -f /tmp/dbus-session.sock
+    dbus-daemon --session --address="$DBUS_SESSION_BUS_ADDRESS" --fork >/dev/null 2>&1 || true
   fi
-  if ! pgrep -u "$USER" -x gnome-keyring-daemon >/dev/null 2>&1; then
+  if ! pgrep -f gnome-keyring-daemon >/dev/null 2>&1; then
     gnome-keyring-daemon --start --components=secrets >/dev/null 2>&1 || true
   fi
 fi
