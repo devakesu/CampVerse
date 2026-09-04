@@ -1,19 +1,51 @@
 import 'package:campverse/core/models/app_role.dart';
+import 'package:campverse/features/campus_admin/dashboard/campus_dashboard_page.dart';
+import 'package:campverse/features/campus_admin/institute/institute_management_page.dart';
 import 'package:campverse/features/shell/base_role_shell.dart';
 import 'package:campverse/features/shell/widgets/role_dashboard_view.dart';
 import 'package:flutter/material.dart';
 
 /// Workspace shell for Office Administration records and operations.
-class OfficeAdminShell extends StatelessWidget {
+class OfficeAdminShell extends StatefulWidget {
   /// Default constructor for OfficeAdminShell.
   const OfficeAdminShell({super.key});
 
   @override
+  State<OfficeAdminShell> createState() => _OfficeAdminShellState();
+}
+
+class _OfficeAdminShellState extends State<OfficeAdminShell> {
+  int _selectedIndex = 0;
+
+  void _onNavigateToTab(int index) {
+    setState(() => _selectedIndex = index);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const BaseRoleShell(
+    return BaseRoleShell(
       role: AppRole.officeAdmin,
+      selectedIndex: _selectedIndex,
+      onDestinationSelected: (index) {
+        setState(() => _selectedIndex = index);
+      },
       destinations: [
         NavDestinationItem(
+          label: 'Dashboard',
+          icon: Icons.dashboard_outlined,
+          selectedIcon: Icons.dashboard_rounded,
+          body: CampusDashboardPage(
+            role: AppRole.officeAdmin,
+            onNavigateToTab: _onNavigateToTab,
+          ),
+        ),
+        const NavDestinationItem(
+          label: 'Institute',
+          icon: Icons.domain_outlined,
+          selectedIcon: Icons.domain_rounded,
+          body: InstituteManagementPage(role: AppRole.officeAdmin),
+        ),
+        const NavDestinationItem(
           label: 'Admissions',
           icon: Icons.how_to_reg_outlined,
           selectedIcon: Icons.how_to_reg_rounded,
@@ -29,7 +61,7 @@ class OfficeAdminShell extends StatelessWidget {
             ],
           ),
         ),
-        NavDestinationItem(
+        const NavDestinationItem(
           label: 'Certificates',
           icon: Icons.verified_outlined,
           selectedIcon: Icons.verified_rounded,
@@ -45,7 +77,7 @@ class OfficeAdminShell extends StatelessWidget {
             ],
           ),
         ),
-        NavDestinationItem(
+        const NavDestinationItem(
           label: 'Fee & Ops',
           icon: Icons.receipt_long_outlined,
           selectedIcon: Icons.receipt_long_rounded,

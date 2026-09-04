@@ -249,6 +249,9 @@ class AppColors {
   static Color borderOf(BuildContext context) =>
       isDark(context) ? darkSurfaceBorder : lightSurfaceBorder;
 
+  /// Semantic alias for borderOf.
+  static Color surfaceBorderOf(BuildContext context) => borderOf(context);
+
   /// Dynamic primary text color based on active theme.
   static Color textPrimaryOf(BuildContext context) =>
       isDark(context) ? darkTextPrimary : lightTextPrimary;

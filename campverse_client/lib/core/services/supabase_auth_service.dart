@@ -34,6 +34,20 @@ class SupabaseAuthService {
   /// Current active Supabase authentication session.
   Session? get currentSession => _client.auth.currentSession;
 
+  /// Returns whether the current session exists and is expired.
+  bool get isSessionExpired => _client.auth.currentSession?.isExpired ?? true;
+
+  /// Returns the current session, refreshing it on demand if the access token
+  /// has expired.
+  Future<Session?> getSession() async {
+    return _client.auth.getSession();
+  }
+
+  /// Refreshes the current active session using the stored refresh token.
+  Future<AuthResponse> refreshSession([String? refreshToken]) async {
+    return _client.auth.refreshSession(refreshToken);
+  }
+
   /// Current authenticated Supabase user profile.
   User? get currentUser => _client.auth.currentUser;
 

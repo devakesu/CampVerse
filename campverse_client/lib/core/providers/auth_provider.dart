@@ -6,6 +6,7 @@ import 'package:campverse/core/models/login_result.dart';
 import 'package:campverse/core/services/role_service.dart';
 import 'package:campverse/core/services/secure_storage_service.dart';
 import 'package:campverse/core/services/supabase_auth_service.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -36,14 +37,17 @@ final authStateProvider = StateNotifierProvider<AuthNotifier, AuthUserState>((
 });
 
 /// StateNotifier orchestrating authentication flows, MFA, role management,
-/// and the 30-minute role-switch TTL restore behavior.
-class AuthNotifier extends StateNotifier<AuthUserState> {
+/// periodic session refreshes while app is open, and role-switch TTL restore.
+class AuthNotifier extends StateNotifier<AuthUserState>
+    with WidgetsBindingObserver {
   /// Default constructor for AuthNotifier.
   AuthNotifier({
     required this.authService,
     required this.roleService,
     required this.storageService,
-  }) : super(const AuthUserState(isLoading: true)) {
+    Duration? refreshInterval,
+  })  : _refreshInterval = refreshInterval ?? const Duration(minutes: 5),
+        super(const AuthUserState(isLoading: true)) {
     _init();
   }
 
@@ -56,12 +60,21 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
   /// Hardware-encrypted storage service.
   final SecureStorageService storageService;
 
+  final Duration _refreshInterval;
+
+  Timer? _periodicRefreshTimer;
   StreamSubscription<AuthState>? _authSubscription;
   bool _isProcessingSession = false;
   String? _lastProcessedToken;
 
   void _init() {
-    unawaited(_processSession(authService.currentSession));
+    try {
+      WidgetsBinding.instance.addObserver(this);
+    } on Object catch (_) {
+      // Ignored in non-widget testing environments
+    }
+
+    _startPeriodicRefresh();
 
     _authSubscription = authService.client.auth.onAuthStateChange.listen((
       data,
@@ -70,14 +83,100 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       final session = data.session;
 
       if (event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.tokenRefreshed ||
-          event == AuthChangeEvent.userUpdated) {
+          event == AuthChangeEvent.initialSession) {
         unawaited(_processSession(session));
+      } else if (event == AuthChangeEvent.tokenRefreshed) {
+        _handleTokenRefreshed(session);
+      } else if (event == AuthChangeEvent.userUpdated) {
+        if (session != null) {
+          state = state.copyWith(session: session, user: session.user);
+        }
       } else if (event == AuthChangeEvent.signedOut) {
         _lastProcessedToken = null;
         state = const AuthUserState();
       }
     });
+
+    unawaited(_processSession(authService.currentSession));
+  }
+
+  /// Starts the periodic session refresh timer that keeps the token fresh
+  /// while the application remains open.
+  void _startPeriodicRefresh() {
+    _periodicRefreshTimer?.cancel();
+    _periodicRefreshTimer = Timer.periodic(_refreshInterval, (_) {
+      unawaited(checkAndRefreshSession());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Proactively refresh when app foregrounds or tab gains focus
+      unawaited(checkAndRefreshSession());
+    }
+  }
+
+  /// Handles background token refresh notifications silently without
+  /// setting `isLoading: true` or resetting existing workspace navigation.
+  void _handleTokenRefreshed(Session? session) {
+    if (session == null) {
+      return;
+    }
+    _lastProcessedToken = session.accessToken;
+
+    if (state.isAuthenticated) {
+      state = state.copyWith(
+        session: session,
+        user: session.user,
+      );
+    } else {
+      unawaited(_processSession(session));
+    }
+  }
+
+  /// Verifies active session expiry and proactively refreshes if expired or
+  /// expiring soon (within 10 minutes).
+  Future<bool> checkAndRefreshSession({bool force = false}) async {
+    final currentSession = authService.currentSession;
+    if (currentSession == null) {
+      return false;
+    }
+
+    final expiresAt = currentSession.expiresAt;
+    final isExpired = currentSession.isExpired;
+    final expiresSoon = expiresAt != null &&
+        DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000)
+                .difference(DateTime.now()) <=
+            const Duration(minutes: 10);
+
+    if (!force && !isExpired && !expiresSoon) {
+      return true;
+    }
+
+    try {
+      final res = await authService.refreshSession();
+      final refreshed = res.session;
+      if (refreshed != null) {
+        _lastProcessedToken = refreshed.accessToken;
+        state = state.copyWith(
+          session: refreshed,
+          user: refreshed.user,
+        );
+        return true;
+      }
+      return false;
+    } on AuthException catch (e) {
+      final isRevoked = e.code == 'refresh_token_not_found' ||
+          e.code == 'invalid_grant' ||
+          e.message.contains('Invalid Refresh Token');
+      if (isExpired && isRevoked) {
+        await signOut();
+      }
+      return false;
+    } on Exception {
+      return false;
+    }
   }
 
   /// Clear any active error message banner.
@@ -96,7 +195,7 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       return;
     }
 
-    // Skip redundant processing if already fully authenticated with this exact token
+    // Skip redundant processing if already authenticated with this exact token
     if (_lastProcessedToken == session.accessToken &&
         state.isAuthenticated &&
         state.activeRole != null &&
@@ -104,21 +203,48 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       return;
     }
 
-    if (_isProcessingSession) return;
+    if (_isProcessingSession) {
+      return;
+    }
     _isProcessingSession = true;
 
     try {
+      var activeSession = session;
+
+      // If the session token is expired (e.g. app reopened after inactivity),
+      // refresh it first so checkLoginStatus does not receive a 401.
+      if (activeSession.isExpired) {
+        try {
+          final res = await authService.refreshSession();
+          if (res.session != null) {
+            activeSession = res.session!;
+          } else {
+            await authService.signOut();
+            await storageService.clearAll();
+            _lastProcessedToken = null;
+            state = const AuthUserState();
+            return;
+          }
+        } on Exception {
+          await authService.signOut();
+          await storageService.clearAll();
+          _lastProcessedToken = null;
+          state = const AuthUserState();
+          return;
+        }
+      }
+
       state = state.copyWith(
         isLoading: true,
-        session: session,
-        user: session.user,
+        session: activeSession,
+        user: activeSession.user,
         clearError: true,
         clearAccountFlags: true,
       );
 
       // 1. Validate login eligibility (profile exists, account active)
       final loginStatus = await roleService.checkLoginStatus(
-        session.accessToken,
+        activeSession.accessToken,
       );
 
       if (!loginStatus.allowed) {
@@ -142,7 +268,7 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       final factors = await authService.getEnrolledMfaFactors();
       if (factors.isNotEmpty) {
         final isVerified = await storageService.isMfaVerifiedForSession(
-          session.accessToken,
+          activeSession.accessToken,
         );
         if (!isVerified) {
           state = state.copyWith(
@@ -155,16 +281,18 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
       }
 
       // 3. Fetch server-derived authorized roles
-      final roles = await roleService.resolveUserRoles(session.accessToken);
+      final roles = await roleService.resolveUserRoles(
+        activeSession.accessToken,
+      );
 
-      // 4. Determine base role from login-status response (server-authoritative)
+      // 4. Base role from login-status response (server-authoritative)
       final baseRole =
           loginStatus.baseRole ??
           (roles.isNotEmpty ? roles.first : AppRole.student);
 
       final finalRoles = roles.isNotEmpty ? roles : [baseRole];
 
-      // 5. Restore switched role if within 30-minute TTL window, or keep existing activeRole
+      // 5. Restore switched role if within TTL, or keep activeRole
       var activeRole = baseRole;
       final restoredRoleStr = await storageService.getRestoredRoleIfValid();
       if (restoredRoleStr != null) {
@@ -176,7 +304,8 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
           // Role no longer authorized — clear the stale switch
           await storageService.clearRoleSwitch();
         }
-      } else if (state.activeRole != null && finalRoles.contains(state.activeRole)) {
+      } else if (state.activeRole != null &&
+          finalRoles.contains(state.activeRole)) {
         // Preserve current activeRole across token refresh / session updates
         activeRole = state.activeRole!;
       }
@@ -186,14 +315,31 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
         activeRole = finalRoles.first;
       }
 
-      _lastProcessedToken = session.accessToken;
+      // 6. Fetch user's institute affiliation
+      String? instituteId;
+      try {
+        final profileRow = await authService.client
+            .from('profiles')
+            .select('institute_id')
+            .eq('id', activeSession.user.id)
+            .maybeSingle();
+        if (profileRow != null && profileRow['institute_id'] != null) {
+          instituteId = profileRow['institute_id'] as String?;
+        }
+      } on Exception {
+        // Fall back to JWT metadata if network / RPC glitch
+      }
+      instituteId ??= activeSession.user.appMetadata['institute_id'] as String?;
+
+      _lastProcessedToken = activeSession.accessToken;
 
       state = state.copyWith(
-        session: session,
-        user: session.user,
+        session: activeSession,
+        user: activeSession.user,
         baseRole: baseRole,
         availableRoles: finalRoles,
         activeRole: activeRole,
+        instituteId: instituteId,
         isMfaPending: false,
         isLoading: false,
         loadingAction: AuthLoadingAction.none,
@@ -596,6 +742,10 @@ class AuthNotifier extends StateNotifier<AuthUserState> {
 
   @override
   void dispose() {
+    try {
+      WidgetsBinding.instance.removeObserver(this);
+    } on Object catch (_) {}
+    _periodicRefreshTimer?.cancel();
     unawaited(_authSubscription?.cancel());
     super.dispose();
   }

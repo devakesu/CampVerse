@@ -41,6 +41,8 @@ class BaseRoleShell extends ConsumerStatefulWidget {
     required this.role,
     required this.destinations,
     this.customActions = const [],
+    this.selectedIndex,
+    this.onDestinationSelected,
     super.key,
   });
 
@@ -53,13 +55,29 @@ class BaseRoleShell extends ConsumerStatefulWidget {
   /// Optional extra app bar action buttons.
   final List<Widget> customActions;
 
+  /// Optional controlled tab index.
+  final int? selectedIndex;
+
+  /// Optional callback when a navigation destination is selected.
+  final ValueChanged<int>? onDestinationSelected;
+
   @override
   ConsumerState<BaseRoleShell> createState() => _BaseRoleShellState();
 }
 
 class _BaseRoleShellState extends ConsumerState<BaseRoleShell> {
-  int _selectedIndex = 0;
+  int _internalSelectedIndex = 0;
   bool _isSidebarCollapsed = false;
+
+  int get _selectedIndex => widget.selectedIndex ?? _internalSelectedIndex;
+
+  void _handleDestinationSelected(int index) {
+    if (widget.onDestinationSelected != null) {
+      widget.onDestinationSelected!(index);
+    } else {
+      setState(() => _internalSelectedIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,9 +108,7 @@ class _BaseRoleShellState extends ConsumerState<BaseRoleShell> {
             onToggleCollapse: () {
               setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
             },
-            onDestinationSelected: (index) {
-              setState(() => _selectedIndex = index);
-            },
+            onDestinationSelected: _handleDestinationSelected,
           ),
           Expanded(
             child: Column(
@@ -230,9 +246,7 @@ class _BaseRoleShellState extends ConsumerState<BaseRoleShell> {
               child: FloatingGlassBottomBar(
                 accentColor: roleColor,
                 selectedIndex: _selectedIndex,
-                onTap: (index) {
-                  setState(() => _selectedIndex = index);
-                },
+                onTap: _handleDestinationSelected,
                 tabs: widget.destinations.map((d) {
                   return FloatingNavTab(
                     label: d.label,

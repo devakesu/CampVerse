@@ -256,6 +256,7 @@ RUN groupadd -g 989 docker-host 2>/dev/null || true \
 
 # 5. User Environment Defaults & Entrypoint
 USER vscode
+RUN echo 'if [ -t 1 ]; then (while true; do printf "\033[0m" > /dev/tty 2>/dev/null; sleep 25; done) >/dev/null 2>&1 & disown $! 2>/dev/null; fi' >> /home/vscode/.bashrc
 WORKDIR /campverse
 EXPOSE 80 3000 8000 8080 8181 54321 54322 54323
 CMD ["sleep", "infinity"]

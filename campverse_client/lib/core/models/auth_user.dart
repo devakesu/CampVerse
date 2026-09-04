@@ -34,8 +34,8 @@ class AuthUserState {
     this.isLoadingPasskeys = false,
     this.accountNotFound = false,
     this.accountSuspended = false,
+    this.instituteId,
   });
-
 
   /// Active Supabase session if authenticated.
   final Session? session;
@@ -82,6 +82,9 @@ class AuthUserState {
   /// The UI surfaces a distinct suspension warning.
   final bool accountSuspended;
 
+  /// Active institute UUID for campus staff, students, and administrators.
+  final String? instituteId;
+
   /// True if session is present and MFA has cleared.
   bool get isAuthenticated => session != null && !isMfaPending;
 
@@ -103,6 +106,7 @@ class AuthUserState {
     bool? isLoadingPasskeys,
     bool? accountNotFound,
     bool? accountSuspended,
+    String? instituteId,
     bool clearActiveRole = false,
     bool clearError = false,
     bool clearAccountFlags = false,
@@ -115,12 +119,16 @@ class AuthUserState {
       activeRole: clearActiveRole ? null : (activeRole ?? this.activeRole),
       isMfaPending: isMfaPending ?? this.isMfaPending,
       isLoading: isLoading ?? this.isLoading,
-      loadingAction: loadingAction ?? (isLoading == false ? AuthLoadingAction.none : this.loadingAction),
+      loadingAction: loadingAction ??
+          (isLoading == false ? AuthLoadingAction.none : this.loadingAction),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       userPasskeys: userPasskeys ?? this.userPasskeys,
       isLoadingPasskeys: isLoadingPasskeys ?? this.isLoadingPasskeys,
-      accountNotFound: !clearAccountFlags && (accountNotFound ?? this.accountNotFound),
-      accountSuspended: !clearAccountFlags && (accountSuspended ?? this.accountSuspended),
+      accountNotFound: !clearAccountFlags &&
+          (accountNotFound ?? this.accountNotFound),
+      accountSuspended: !clearAccountFlags &&
+          (accountSuspended ?? this.accountSuspended),
+      instituteId: instituteId ?? this.instituteId,
     );
   }
 }

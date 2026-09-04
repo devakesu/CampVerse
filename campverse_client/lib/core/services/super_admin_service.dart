@@ -240,7 +240,9 @@ class SuperAdminService {
     bool isActive = true,
   }) async {
     try {
-      final token = _client.auth.currentSession?.accessToken;
+      final session =
+          await _client.auth.getSession() ?? _client.auth.currentSession;
+      final token = session?.accessToken;
       if (token == null) {
         return ApiResponse.failure(
           'Authentication required. Please sign in as Super Administrator.',
