@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:campverse/features/student/models/student_registration.dart';
 import 'package:campverse/features/student/providers/student_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Interactive modal sheet rendering an authenticated digital QR entry pass.
 class QrPassDialog extends ConsumerStatefulWidget {
@@ -54,11 +56,35 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
     super.dispose();
   }
 
+  String _formatDate(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  String _formatTime(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$min $period';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
     final reg = widget.registration;
     final event = reg.event;
+    final authState = ref.watch(authStateProvider);
+    final studentName =
+        authState.user?.userMetadata?['full_name'] as String? ??
+            'Verified Student';
+
+    final surface = AppColors.surfaceOf(context);
+    final border = AppColors.borderOf(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final textSecondary = AppColors.textSecondaryOf(context);
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -67,7 +93,7 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
         constraints: const BoxConstraints(maxWidth: 420),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.surfaceOf(context),
+            color: surface,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isDark
@@ -101,18 +127,26 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0369A1).withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                    if (event?.primaryOrgLogo != null &&
+                        event!.primaryOrgLogo!.isNotEmpty)
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundImage: NetworkImage(event.primaryOrgLogo!),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0369A1)
+                              .withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.confirmation_number_rounded,
+                          color: Color(0xFF0284C7),
+                          size: 22,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.confirmation_number_rounded,
-                        color: Color(0xFF0284C7),
-                        size: 24,
-                      ),
-                    ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -120,10 +154,10 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                         children: [
                           Text(
                             event?.title ?? 'Campus Entry Pass',
-                            style: TextStyle(
+                            style: GoogleFonts.outfit(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimaryOf(context),
+                              color: textPrimary,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -131,9 +165,9 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                           const SizedBox(height: 2),
                           Text(
                             event?.venue ?? 'Campus Venue',
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: AppColors.textSecondaryOf(context),
+                              color: textSecondary,
                             ),
                           ),
                         ],
@@ -157,9 +191,7 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                     (i) => Expanded(
                       child: Container(
                         height: 1.5,
-                        color: i.isEven
-                            ? AppColors.borderOf(context)
-                            : Colors.transparent,
+                        color: i.isEven ? border : Colors.transparent,
                       ),
                     ),
                   ),
@@ -171,49 +203,63 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    // Status Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: reg.isActive
-                            ? const Color(0xFF16A34A).withValues(alpha: 0.12)
-                            : AppColors.borderOf(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: reg.isActive
-                              ? const Color(0xFF16A34A)
-                              : Colors.grey,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            reg.isActive
-                                ? Icons.verified_rounded
-                                : Icons.info_outline_rounded,
-                            size: 14,
+                    // Status Badge & Attendee Name
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
                             color: reg.isActive
                                 ? const Color(0xFF16A34A)
-                                : Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            reg.status.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
+                                    .withValues(alpha: 0.12)
+                                : border,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
                               color: reg.isActive
                                   ? const Color(0xFF16A34A)
                                   : Colors.grey,
                             ),
                           ),
-                        ],
-                      ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                reg.isActive
+                                    ? Icons.verified_rounded
+                                    : Icons.info_outline_rounded,
+                                size: 14,
+                                color: reg.isActive
+                                    ? const Color(0xFF16A34A)
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                reg.status.toUpperCase(),
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                  color: reg.isActive
+                                      ? const Color(0xFF16A34A)
+                                      : Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          studentName,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
 
@@ -323,11 +369,11 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
 
                     const SizedBox(height: 8),
                     Text(
-                      'Scan this QR at the entrance gate for instant check-in',
+                      'Present this pass at the gate for instant NFC/QR check-in',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: AppColors.textSecondaryOf(context),
+                        color: textSecondary,
                       ),
                     ),
 
@@ -360,16 +406,39 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                             Flexible(
                               child: Text(
                                 '+${event.ktuActivityPoints} '
-                                'KTU Activity Points on Check-in',
-                                style: const TextStyle(
+                                'KTU Points on Gate Scan',
+                                style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF8B5CF6),
+                                  color: const Color(0xFF8B5CF6),
                                 ),
                               ),
                             ),
                           ],
                         ),
+                      ),
+                    ],
+
+                    if (event != null) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 13,
+                            color: textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_formatDate(event.startTime)} • '
+                            '${_formatTime(event.startTime)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
 
@@ -388,8 +457,8 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                                     builder: (c) => AlertDialog(
                                       title: const Text('Cancel Registration?'),
                                       content: const Text(
-                                        'Are you sure you want to surrender '
-                                        'this pass?',
+                                        'Are you sure you want to '
+                                        'surrender this pass?',
                                       ),
                                       actions: [
                                         TextButton(
@@ -411,13 +480,30 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
 
                                   if (confirm == true) {
                                     setState(() => _isCancelling = true);
-                                    await ref
+                                    final success = await ref
                                         .read(
                                           studentRegistrationsProvider.notifier,
                                         )
                                         .cancelPass(reg.id);
+
+                                    if (success) {
+                                      await ref
+                                          .read(
+                                            studentEventsProvider.notifier,
+                                          )
+                                          .loadEvents();
+                                    }
+
                                     if (context.mounted) {
                                       Navigator.of(context).pop();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Registration cancelled',
+                                          ),
+                                        ),
+                                      );
                                     }
                                   }
                                 },
@@ -443,6 +529,10 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
                             _isCancelling
                                 ? 'Cancelling...'
                                 : 'Cancel Pass Registration',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -459,7 +549,7 @@ class _QrPassDialogState extends ConsumerState<QrPassDialog>
 
 /// Custom painter rendering a crisp, deterministic vector 2D QR matrix.
 class _VectorQrMatrixPainter extends CustomPainter {
-  const _VectorQrMatrixPainter({
+  _VectorQrMatrixPainter({
     required this.seed,
     required this.isDark,
   });
@@ -470,43 +560,69 @@ class _VectorQrMatrixPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDark ? Colors.white : const Color(0xFF0F172A)
+      ..color = isDark ? Colors.white : Colors.black87
       ..style = PaintingStyle.fill;
 
-    const gridSize = 19;
-    final cellSize = size.width / gridSize;
+    const matrixSize = 21;
+    final cellSize = size.width / matrixSize;
 
-    // Corner Finder Patterns (7x7 squares at corners)
-    _drawFinderPattern(canvas, paint, 0, 0, cellSize);
-    _drawFinderPattern(canvas, paint, gridSize - 7, 0, cellSize);
-    _drawFinderPattern(canvas, paint, 0, gridSize - 7, cellSize);
+    // Corner finder patterns
+    void drawFinder(double x, double y) {
+      canvas.drawRect(
+        Rect.fromLTWH(x, y, 7 * cellSize, 7 * cellSize),
+        paint,
+      );
+      final whitePaint = Paint()
+        ..color = isDark ? Colors.black87 : Colors.white
+        ..style = PaintingStyle.fill;
+      canvas
+        ..drawRect(
+          Rect.fromLTWH(
+            x + cellSize,
+            y + cellSize,
+            5 * cellSize,
+            5 * cellSize,
+          ),
+          whitePaint,
+        )
+        ..drawRect(
+          Rect.fromLTWH(
+            x + (2 * cellSize),
+            y + (2 * cellSize),
+            3 * cellSize,
+            3 * cellSize,
+          ),
+          paint,
+        );
+    }
 
-    // Deterministic module generation from seed hash
-    final random = Random(seed.hashCode);
+    drawFinder(0, 0);
+    drawFinder((matrixSize - 7) * cellSize, 0);
+    drawFinder(0, (matrixSize - 7) * cellSize);
 
-    for (var r = 0; r < gridSize; r++) {
-      for (var c = 0; c < gridSize; c++) {
-        // Skip finder pattern zones
-        final inTopLeft = r < 7 && c < 7;
-        final inTopRight = r < 7 && c >= gridSize - 7;
-        final inBottomLeft = r >= gridSize - 7 && c < 7;
+    // Deterministic pseudo-random pattern based on seed
+    final rand = Random(seed.hashCode.abs());
+
+    for (var row = 0; row < matrixSize; row++) {
+      for (var col = 0; col < matrixSize; col++) {
+        // Skip finder regions
+        final inTopLeft = row < 8 && col < 8;
+        final inTopRight = row < 8 && col >= matrixSize - 8;
+        final inBottomLeft = row >= matrixSize - 8 && col < 8;
 
         if (inTopLeft || inTopRight || inBottomLeft) {
           continue;
         }
 
         // Timing patterns
-        if (r == 6 || c == 6) {
-          if ((r + c).isEven) {
-            canvas.drawRRect(
-              RRect.fromRectAndRadius(
-                Rect.fromLTWH(
-                  c * cellSize,
-                  r * cellSize,
-                  cellSize - 0.5,
-                  cellSize - 0.5,
-                ),
-                const Radius.circular(1),
+        if (row == 6 || col == 6) {
+          if ((row + col).isEven) {
+            canvas.drawRect(
+              Rect.fromLTWH(
+                col * cellSize,
+                row * cellSize,
+                cellSize,
+                cellSize,
               ),
               paint,
             );
@@ -514,17 +630,16 @@ class _VectorQrMatrixPainter extends CustomPainter {
           continue;
         }
 
-        // Pseudo-random deterministic fill based on seed
-        if (random.nextBool()) {
+        if (rand.nextBool()) {
           canvas.drawRRect(
             RRect.fromRectAndRadius(
               Rect.fromLTWH(
-                c * cellSize,
-                r * cellSize,
-                cellSize - 0.5,
-                cellSize - 0.5,
+                col * cellSize,
+                row * cellSize,
+                cellSize * 0.92,
+                cellSize * 0.92,
               ),
-              const Radius.circular(1),
+              const Radius.circular(1.5),
             ),
             paint,
           );
@@ -533,50 +648,8 @@ class _VectorQrMatrixPainter extends CustomPainter {
     }
   }
 
-  void _drawFinderPattern(
-    Canvas canvas,
-    Paint paint,
-    int startCol,
-    int startRow,
-    double cellSize,
-  ) {
-    // Outer 7x7
-    canvas.drawRect(
-      Rect.fromLTWH(
-        startCol * cellSize,
-        startRow * cellSize,
-        7 * cellSize,
-        7 * cellSize,
-      ),
-      paint,
-    );
-
-    // Inner 5x5 cutout
-    final clearPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas
-      ..drawRect(
-        Rect.fromLTWH(
-          (startCol + 1) * cellSize,
-          (startRow + 1) * cellSize,
-          5 * cellSize,
-          5 * cellSize,
-        ),
-        clearPaint,
-      )
-      ..drawRect(
-        Rect.fromLTWH(
-          (startCol + 2) * cellSize,
-          (startRow + 2) * cellSize,
-          3 * cellSize,
-          3 * cellSize,
-        ),
-        paint,
-      );
-  }
-
   @override
-  bool shouldRepaint(covariant _VectorQrMatrixPainter oldDelegate) =>
-      oldDelegate.seed != seed || oldDelegate.isDark != isDark;
+  bool shouldRepaint(_VectorQrMatrixPainter oldDelegate) {
+    return oldDelegate.seed != seed || oldDelegate.isDark != isDark;
+  }
 }

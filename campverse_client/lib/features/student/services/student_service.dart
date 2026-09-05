@@ -309,69 +309,7 @@ class StudentService {
         return ApiResponse.success(events);
       }
 
-      // Default demo campus events
-      final now = DateTime.now();
-      return ApiResponse.success([
-        StudentEvent(
-          id: 'event-hack-1',
-          title: 'HackVerse 2026: 24hr Campus Hackathon',
-          venue: 'Campus Innovation Center, Auditorium Hall',
-          startTime: now.add(const Duration(days: 2, hours: 9)),
-          endTime: now.add(const Duration(days: 3, hours: 10)),
-          primaryOrgName: 'IEEE Student Branch',
-          isFeatured: true,
-          tags: const ['Hackathon', 'Tech', 'AI'],
-          ktuActivityPoints: 20,
-          isDutyLeaveApproved: true,
-          description:
-              'Build groundbreaking multiplatform, AI, and IoT solutions in '
-              'a 24-hour non-stop development sprint. Food, mentorship, and '
-              'exciting cash prizes provided!',
-        ),
-        StudentEvent(
-          id: 'event-workshop-2',
-          title: 'Quantum Computing & Cryptography Workshop',
-          venue: 'Seminar Hall 3, Department Block',
-          startTime: now.add(const Duration(days: 5, hours: 14)),
-          endTime: now.add(const Duration(days: 5, hours: 17)),
-          primaryOrgName: 'FOSS Cell & ACM',
-          tags: const ['Workshop', 'Cybersecurity', 'Research'],
-          ktuActivityPoints: 10,
-          isDutyLeaveApproved: true,
-          description:
-              'Hands-on session exploring post-quantum cryptography, lattice '
-              'schemes, and modern security architectures.',
-          isRegisteredByMe: true,
-        ),
-        StudentEvent(
-          id: 'event-fest-3',
-          title: 'Sargam 2026: Annual Campus Cultural Fest',
-          venue: 'Open Air Amphitheatre',
-          startTime: now.add(const Duration(days: 12, hours: 16)),
-          endTime: now.add(const Duration(days: 14, hours: 22)),
-          primaryOrgName: 'Student Union 2026',
-          tags: const ['Cultural', 'Music', 'Arts'],
-          ktuActivityPoints: 15,
-          isDutyLeaveApproved: true,
-          description:
-              'Three days of music bands, dance performances, fine arts '
-              'competitions, and campus celebrity nights.',
-        ),
-        StudentEvent(
-          id: 'event-sports-4',
-          title: 'Inter-Department Football Championship',
-          venue: 'Main Sports Complex Football Turf',
-          startTime: now.add(const Duration(days: 8, hours: 8)),
-          endTime: now.add(const Duration(days: 9, hours: 18)),
-          primaryOrgName: 'Campus Sports Council',
-          tags: const ['Sports', 'Football', 'Athletics'],
-          ktuActivityPoints: 10,
-          isDutyLeaveApproved: true,
-          description:
-              'Battle for the prestigious Campus Rolling Trophy. 16 department '
-              'teams competing in knockout rounds.',
-        ),
-      ]);
+      return ApiResponse.success([]);
     } on Exception catch (e) {
       return ApiResponse.failure('Failed to load events: $e');
     }
@@ -395,29 +333,7 @@ class StudentService {
         return ApiResponse.success(regs);
       }
 
-      // Default mock pass for development
-      final now = DateTime.now();
-      return ApiResponse.success([
-        StudentRegistration(
-          id: 'reg-demo-1',
-          eventId: 'event-workshop-2',
-          userId: studentId,
-          qrPayload: 'CAMP-PASS-9982-QC-2026',
-          status: 'confirmed',
-          createdAt: now.subtract(const Duration(days: 1)),
-          event: StudentEvent(
-            id: 'event-workshop-2',
-            title: 'Quantum Computing & Cryptography Workshop',
-            venue: 'Seminar Hall 3, Department Block',
-            startTime: now.add(const Duration(days: 5, hours: 14)),
-            endTime: now.add(const Duration(days: 5, hours: 17)),
-            primaryOrgName: 'FOSS Cell & ACM',
-            tags: const ['Workshop', 'Cybersecurity'],
-            ktuActivityPoints: 10,
-            isRegisteredByMe: true,
-          ),
-        ),
-      ]);
+      return ApiResponse.success([]);
     } on Exception catch (e) {
       return ApiResponse.failure('Failed to load registrations: $e');
     }

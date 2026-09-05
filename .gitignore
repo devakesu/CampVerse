@@ -125,6 +125,7 @@ $RECYCLE.BIN/
 # ==========================================
 *.log
 temp/
+sample/
 .infisical.json
 .github/prompts
 .github/skills

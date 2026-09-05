@@ -70,4 +70,30 @@ class StudentRegistration {
 
   /// Whether the registration has been cancelled.
   bool get isCancelled => status == 'cancelled';
+
+  /// Whether the associated event has already concluded.
+  bool get isExpired {
+    if (event == null) {
+      return false;
+    }
+    return DateTime.now().isAfter(event!.endTime);
+  }
+
+  /// Creates a copy with optional overrides.
+  StudentRegistration copyWith({
+    String? status,
+    DateTime? scannedAt,
+    StudentEvent? event,
+  }) {
+    return StudentRegistration(
+      id: id,
+      eventId: eventId,
+      userId: userId,
+      qrPayload: qrPayload,
+      status: status ?? this.status,
+      createdAt: createdAt,
+      event: event ?? this.event,
+      scannedAt: scannedAt ?? this.scannedAt,
+    );
+  }
 }

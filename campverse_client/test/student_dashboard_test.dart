@@ -315,7 +315,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Discover Events'), findsOneWidget);
+      expect(find.text('Discover Events (1)'), findsOneWidget);
       expect(find.text('HackVerse 2026: Campus Hackathon'), findsOneWidget);
 
       // Switch to Passes
@@ -397,15 +397,20 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (ctx) => Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    unawaited(QrPassDialog.show(ctx, mockRegistrations.first));
-                  },
-                  child: const Text('Open Pass'),
+        ProviderScope(
+          overrides: [
+            authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      unawaited(QrPassDialog.show(ctx, mockRegistrations.first));
+                    },
+                    child: const Text('Open Pass'),
+                  ),
                 ),
               ),
             ),
@@ -424,7 +429,7 @@ void main() {
       );
       expect(find.text('CAMP-PASS-1234-TEST'), findsOneWidget);
       expect(
-        find.text('Scan this QR at the entrance gate for instant check-in'),
+        find.text('Present this pass at the gate for instant NFC/QR check-in'),
         findsOneWidget,
       );
     });
