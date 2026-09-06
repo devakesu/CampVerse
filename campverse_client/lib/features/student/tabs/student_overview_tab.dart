@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:campverse/core/providers/auth_provider.dart';
 import 'package:campverse/core/theme/app_colors.dart';
 import 'package:campverse/core/utils/responsive_layout.dart';
+import 'package:campverse/core/widgets/error_state_card.dart';
 import 'package:campverse/features/student/models/student_registration.dart';
 import 'package:campverse/features/student/providers/student_providers.dart';
 import 'package:campverse/features/student/widgets/attendance_gauge_card.dart';
@@ -55,16 +56,16 @@ class StudentOverviewTab extends ConsumerWidget {
     final regsAsync = ref.watch(studentRegistrationsProvider);
     final attendance = ref.watch(studentAttendanceProvider);
 
-    final classDetails = classAsync.value;
-    final activeRegistrations = regsAsync.value
+    final classDetails = classAsync.valueOrNull;
+    final activeRegistrations = regsAsync.valueOrNull
             ?.where((r) => r.isActive)
             .toList() ??
         const <StudentRegistration>[];
 
-    final featuredEvents = eventsAsync.value
+    final featuredEvents = eventsAsync.valueOrNull
             ?.where((e) => e.isFeatured)
             .toList() ??
-        eventsAsync.value?.take(1).toList() ??
+        eventsAsync.valueOrNull?.take(1).toList() ??
         const [];
 
     return RefreshIndicator(
@@ -268,6 +269,28 @@ class StudentOverviewTab extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
+          // ── Sync Error Banners (if background load fails) ──────────────────
+          if (regsAsync.hasError && !regsAsync.hasValue) ...[
+            InlineErrorBanner(
+              message: regsAsync.error?.toString() ??
+                  'Unable to load your digital entry passes.',
+              onRetry: () => ref
+                  .read(studentRegistrationsProvider.notifier)
+                  .loadRegistrations(),
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (eventsAsync.hasError && !eventsAsync.hasValue) ...[
+            InlineErrorBanner(
+              message: eventsAsync.error?.toString() ??
+                  'Unable to load campus events.',
+              onRetry: () => ref
+                  .read(studentEventsProvider.notifier)
+                  .loadEvents(),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // ── Active Pass Quick Ticket (if any) ──────────────────────────────
           if (activeRegistrations.isNotEmpty) ...[
             _buildActivePassBanner(context, activeRegistrations.first),
@@ -283,7 +306,7 @@ class StudentOverviewTab extends ConsumerWidget {
                   flex: 3,
                   child: _buildTodayScheduleSection(
                     context,
-                    timetableAsync.value ?? const [],
+                    timetableAsync.valueOrNull ?? const [],
                   ),
                 ),
                 const SizedBox(width: 24),
@@ -320,7 +343,7 @@ class StudentOverviewTab extends ConsumerWidget {
             const SizedBox(height: 24),
             _buildTodayScheduleSection(
               context,
-              timetableAsync.value ?? const [],
+              timetableAsync.valueOrNull ?? const [],
             ),
             if (featuredEvents.isNotEmpty) ...[
               const SizedBox(height: 24),

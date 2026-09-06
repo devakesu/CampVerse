@@ -15,6 +15,7 @@ class FacultyShell extends StatelessWidget {
       destinations: [
         NavDestinationItem(
           label: 'Courses',
+          accentColor: Color(0xFF2563EB),
           icon: Icons.menu_book_outlined,
           selectedIcon: Icons.menu_book_rounded,
           body: RoleDashboardView(
@@ -31,6 +32,7 @@ class FacultyShell extends StatelessWidget {
         ),
         NavDestinationItem(
           label: 'Advisory',
+          accentColor: Color(0xFF059669),
           icon: Icons.supervised_user_circle_outlined,
           selectedIcon: Icons.supervised_user_circle_rounded,
           body: RoleDashboardView(
@@ -47,6 +49,7 @@ class FacultyShell extends StatelessWidget {
         ),
         NavDestinationItem(
           label: 'Schedule',
+          accentColor: Color(0xFF7C3AED),
           icon: Icons.schedule_outlined,
           selectedIcon: Icons.schedule_rounded,
           body: RoleDashboardView(

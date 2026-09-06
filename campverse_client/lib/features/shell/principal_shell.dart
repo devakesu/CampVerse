@@ -32,6 +32,7 @@ class _PrincipalShellState extends State<PrincipalShell> {
       destinations: [
         NavDestinationItem(
           label: 'Dashboard',
+          accentColor: const Color(0xFF1E40AF),
           icon: Icons.dashboard_outlined,
           selectedIcon: Icons.dashboard_rounded,
           body: CampusDashboardPage(
@@ -41,12 +42,14 @@ class _PrincipalShellState extends State<PrincipalShell> {
         ),
         const NavDestinationItem(
           label: 'Institute',
+          accentColor: Color(0xFF0284C7),
           icon: Icons.domain_outlined,
           selectedIcon: Icons.domain_rounded,
           body: InstituteManagementPage(role: AppRole.principal),
         ),
         const NavDestinationItem(
           label: 'Approvals',
+          accentColor: Color(0xFF059669),
           icon: Icons.verified_user_outlined,
           selectedIcon: Icons.verified_user_rounded,
           body: RoleDashboardView(
@@ -64,6 +67,8 @@ class _PrincipalShellState extends State<PrincipalShell> {
         ),
         const NavDestinationItem(
           label: 'Departments',
+          shortLabel: 'Depts',
+          accentColor: Color(0xFF7C3AED),
           icon: Icons.apartment_outlined,
           selectedIcon: Icons.apartment_rounded,
           body: RoleDashboardView(
@@ -80,6 +85,8 @@ class _PrincipalShellState extends State<PrincipalShell> {
         ),
         const NavDestinationItem(
           label: 'Broadcasts',
+          shortLabel: 'Notices',
+          accentColor: Color(0xFFEA580C),
           icon: Icons.campaign_outlined,
           selectedIcon: Icons.campaign_rounded,
           body: RoleDashboardView(

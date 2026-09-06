@@ -64,7 +64,7 @@ final studentTimetableProvider =
 final studentTodayScheduleProvider =
     Provider<List<StudentTimetableEntry>>((ref) {
   final timetableAsync = ref.watch(studentTimetableProvider);
-  final allEntries = timetableAsync.value ?? const [];
+  final allEntries = timetableAsync.valueOrNull ?? const [];
 
   final weekdayMap = {
     DateTime.monday: 'monday',

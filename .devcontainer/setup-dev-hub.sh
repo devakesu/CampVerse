@@ -661,9 +661,6 @@ RUN_ARGS=(
     -p 8000:8000    # Deno Core API
     -p 8080:8080    # Go Realtime Chat & Workers
     -p 8181:8181    # Dart VM Service / DevTools
-    -p 54321:54321  # Supabase API Gateway
-    -p 54322:54322  # Supabase DB (Postgres)
-    -p 54323:54323  # Supabase Studio UI
 )
 
 RUN_ARGS+=("${GUI_MOUNT_ARGS[@]}")

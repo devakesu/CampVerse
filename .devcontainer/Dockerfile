@@ -246,6 +246,8 @@ else
     echo "ℹ️ IDE server binary pending connection. Extensions will synchronize upon IDE attachment."
 fi
 
+supabase-proxy start >/dev/null 2>&1 || true
+
 echo "🎯 CampVerse Workspace Initialization Complete!"
 EOF
 
@@ -254,9 +256,44 @@ RUN sed -i 's/\r$//' /home/vscode/init_workspace.sh
 RUN groupadd -g 989 docker-host 2>/dev/null || true \
     && usermod -aG docker-host vscode 2>/dev/null || true
 
+# Supabase devcontainer loopback proxy
+RUN cat <<'EOF' > /usr/local/bin/supabase-proxy \
+    && chmod +x /usr/local/bin/supabase-proxy
+#!/usr/bin/env bash
+HOST_IP=$(ip route | awk '/default/ { print $3 }')
+[ -z "$HOST_IP" ] && HOST_IP="172.17.0.1"
+
+PORTS=(54320 54321 54322 54323 54324 54327 54329)
+
+case "$1" in
+  stop)
+    pkill -f "socat.*bind=127.0.0.1" 2>/dev/null || true
+    echo "Supabase proxy stopped."
+    ;;
+  status)
+    for p in "${PORTS[@]}"; do
+      if ss -tlpn | grep -q "127.0.0.1:$p"; then
+        echo "Port $p: PROXIED -> $HOST_IP:$p"
+      else
+        echo "Port $p: NOT RUNNING"
+      fi
+    done
+    ;;
+  start|*)
+    for p in "${PORTS[@]}"; do
+      if ! ss -tlpn | grep -q "127.0.0.1:$p"; then
+        setsid -f socat TCP-LISTEN:$p,fork,reuseaddr,bind=127.0.0.1 TCP:$HOST_IP:$p
+      fi
+    done
+    echo "Supabase proxy started forwarding to host ($HOST_IP)."
+    ;;
+esac
+EOF
+
 # 5. User Environment Defaults & Entrypoint
 USER vscode
-RUN echo 'if [ -t 1 ]; then (while true; do printf "\033[0m" > /dev/tty 2>/dev/null; sleep 25; done) >/dev/null 2>&1 & disown $! 2>/dev/null; fi' >> /home/vscode/.bashrc
+RUN echo 'if [ -t 1 ]; then (while true; do printf "\033[0m" > /dev/tty 2>/dev/null; sleep 25; done) >/dev/null 2>&1 & disown $! 2>/dev/null; fi' >> /home/vscode/.bashrc \
+    && echo 'supabase-proxy start >/dev/null 2>&1' >> /home/vscode/.bashrc
 WORKDIR /campverse
-EXPOSE 80 3000 8000 8080 8181 54321 54322 54323
+EXPOSE 80 3000 8000 8080 8181
 CMD ["sleep", "infinity"]

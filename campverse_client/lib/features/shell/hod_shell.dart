@@ -15,6 +15,7 @@ class HodShell extends StatelessWidget {
       destinations: [
         NavDestinationItem(
           label: 'Department',
+          accentColor: Color(0xFF2563EB),
           icon: Icons.domain_verification_outlined,
           selectedIcon: Icons.domain_verification_rounded,
           body: RoleDashboardView(
@@ -32,6 +33,8 @@ class HodShell extends StatelessWidget {
         ),
         NavDestinationItem(
           label: 'My Teaching',
+          shortLabel: 'Teaching',
+          accentColor: Color(0xFF059669),
           icon: Icons.auto_stories_outlined,
           selectedIcon: Icons.auto_stories_rounded,
           body: RoleDashboardView(
@@ -48,6 +51,8 @@ class HodShell extends StatelessWidget {
         ),
         NavDestinationItem(
           label: 'Timetables',
+          shortLabel: 'Schedule',
+          accentColor: Color(0xFF7C3AED),
           icon: Icons.calendar_month_outlined,
           selectedIcon: Icons.calendar_month_rounded,
           body: RoleDashboardView(

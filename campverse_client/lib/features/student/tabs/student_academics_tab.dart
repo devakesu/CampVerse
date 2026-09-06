@@ -115,7 +115,7 @@ class _StudentAcademicsTabState extends ConsumerState<StudentAcademicsTab>
         children: [
           _buildClassCohortView(
             context,
-            classAsync.value ??
+            classAsync.valueOrNull ??
                 const StudentClassDetails(
                   id: 'demo',
                   programmeName: 'B.Tech. Computer Science & Engineering',
@@ -128,8 +128,8 @@ class _StudentAcademicsTabState extends ConsumerState<StudentAcademicsTab>
                   division: 'A',
                 ),
           ),
-          _buildCoursesView(context, coursesAsync.value ?? const []),
-          _buildTimetableView(context, timetableAsync.value ?? const []),
+          _buildCoursesView(context, coursesAsync.valueOrNull ?? const []),
+          _buildTimetableView(context, timetableAsync.valueOrNull ?? const []),
           _buildAttendanceView(context, attendance),
         ],
       ),

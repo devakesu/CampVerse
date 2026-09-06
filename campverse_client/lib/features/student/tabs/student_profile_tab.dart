@@ -31,7 +31,7 @@ class StudentProfileTab extends ConsumerWidget {
     final userEmail = user?.email ?? 'alex.k@campverse.edu';
 
     final classAsync = ref.watch(studentClassDetailsProvider);
-    final classDetails = classAsync.value ??
+    final classDetails = classAsync.valueOrNull ??
         const StudentClassDetails(
           id: 'demo',
           programmeName: 'B.Tech. Computer Science & Engineering',

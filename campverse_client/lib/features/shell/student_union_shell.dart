@@ -15,6 +15,8 @@ class StudentUnionShell extends StatelessWidget {
       destinations: [
         NavDestinationItem(
           label: 'Union Feed',
+          shortLabel: 'Feed',
+          accentColor: Color(0xFFEA580C),
           icon: Icons.newspaper_outlined,
           selectedIcon: Icons.newspaper_rounded,
           body: RoleDashboardView(
@@ -31,6 +33,8 @@ class StudentUnionShell extends StatelessWidget {
         ),
         NavDestinationItem(
           label: 'Clubs Overview',
+          shortLabel: 'Clubs',
+          accentColor: Color(0xFF059669),
           icon: Icons.hub_outlined,
           selectedIcon: Icons.hub_rounded,
           body: RoleDashboardView(

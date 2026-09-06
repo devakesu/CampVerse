@@ -15,6 +15,7 @@ class ClubAdminShell extends StatelessWidget {
       destinations: [
         NavDestinationItem(
           label: 'Events',
+          accentColor: Color(0xFFEA580C),
           icon: Icons.event_available_outlined,
           selectedIcon: Icons.event_available_rounded,
           body: RoleDashboardView(
@@ -32,6 +33,7 @@ class ClubAdminShell extends StatelessWidget {
         ),
         NavDestinationItem(
           label: 'Members',
+          accentColor: Color(0xFF2563EB),
           icon: Icons.badge_outlined,
           selectedIcon: Icons.badge_rounded,
           body: RoleDashboardView(
@@ -48,6 +50,7 @@ class ClubAdminShell extends StatelessWidget {
         ),
         NavDestinationItem(
           label: 'Broadcasts',
+          accentColor: Color(0xFFDB2777),
           icon: Icons.podcasts_outlined,
           selectedIcon: Icons.podcasts_rounded,
           body: RoleDashboardView(

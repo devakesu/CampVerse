@@ -315,15 +315,364 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Discover Events (1)'), findsOneWidget);
+      expect(find.text('Discover Events'), findsOneWidget);
       expect(find.text('HackVerse 2026: Campus Hackathon'), findsOneWidget);
 
       // Switch to Passes
-      await tester.tap(find.text('My Passes (1)'));
+      await tester.tap(find.text('My Passes'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('CONFIRMED'), findsOneWidget);
       expect(find.text('CAMP-PASS-1234-TEST'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Renders category selector with icons, Duty Leave & Free Entry badges, '
+        'and no LIVE or ACTIVE badges', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeEventsNotifier(mockEvents),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(mockRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 1. Verify NO 'LIVE' or 'ACTIVE' badges on status cards
+      expect(find.text('LIVE'), findsNothing);
+      expect(find.text('ACTIVE'), findsNothing);
+
+      // 2. Verify status metric cards titles
+      expect(find.text('Happening Now'), findsOneWidget);
+      expect(find.text('Scheduled Today'), findsOneWidget);
+      expect(find.text('Upcoming'), findsOneWidget);
+
+      // 3. Verify category selector items with labels
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Tech'), findsOneWidget);
+      expect(find.text('Hackathon'), findsOneWidget);
+      expect(find.text('Workshop'), findsOneWidget);
+      expect(find.text('Cultural'), findsOneWidget);
+      expect(find.text('Sports'), findsOneWidget);
+
+      // 4. Verify quick filter badges: Duty Leave and Free Entry only
+      expect(find.text('Duty Leave'), findsAtLeastNWidgets(1));
+      expect(find.text('Free Entry'), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets(
+        'Renders mobile category selector and bottom sheet picker on narrow '
+        'viewports', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeEventsNotifier(mockEvents),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(mockRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // On mobile, the mobile category selector shows 'All Categories'
+      // and 'Change'
+      expect(find.text('All Categories'), findsOneWidget);
+      expect(find.text('Change'), findsOneWidget);
+
+      // Centered Duty Leave and Free Entry badges
+      expect(find.text('Duty Leave'), findsAtLeastNWidgets(1));
+      expect(find.text('Free Entry'), findsAtLeastNWidgets(1));
+
+      // Tap to open the Category Picker BottomSheet
+      await tester.tap(find.text('Change'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Bottom sheet header and grid of categories
+      expect(find.text('Event Categories'), findsOneWidget);
+      expect(find.text('Filter campus events by category'), findsOneWidget);
+      expect(find.text('Tech'), findsOneWidget);
+      expect(find.text('Hackathon'), findsOneWidget);
+      expect(find.text('Workshop'), findsOneWidget);
+
+      // Tap 'Hackathon' to filter
+      await tester.tap(find.text('Hackathon'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Modal is dismissed, mobile button now shows 'Hackathon'
+      expect(find.text('Hackathon'), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets(
+        'Renders dynamic search dropdown, selects entry, and filters '
+        'event list', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final searchEvents = [
+        StudentEvent(
+          id: 'event-1',
+          title: 'HackVerse 2026: Campus Hackathon',
+          venue: 'Auditorium Hall',
+          startTime: now.add(const Duration(days: 2)),
+          endTime: now.add(const Duration(days: 3)),
+          primaryOrgName: 'IEEE Student Branch',
+          isFeatured: true,
+          ktuActivityPoints: 20,
+          description: '24-hour non-stop hackathon sprint.',
+        ),
+        StudentEvent(
+          id: 'event-2',
+          title: 'Rhythm Night: Musical Evening',
+          venue: 'Open Amphitheatre',
+          startTime: now.add(const Duration(days: 5)),
+          endTime: now.add(const Duration(days: 5, hours: 4)),
+          primaryOrgName: 'Music Club',
+          description: 'Live acoustic and rock band festival.',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeEventsNotifier(searchEvents),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(mockRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Initially both events are visible
+      expect(find.text('HackVerse 2026: Campus Hackathon'), findsOneWidget);
+      expect(find.text('Rhythm Night: Musical Evening'), findsOneWidget);
+
+      // 1. Enter matching event query 'Hack'
+      await tester.enterText(find.byType(TextField), 'Hack');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Dropdown appears with EVENTS group
+      expect(find.text('EVENTS'), findsOneWidget);
+      expect(
+        find.text('HackVerse 2026: Campus Hackathon'),
+        findsAtLeastNWidgets(1),
+      );
+
+      // 2. Enter matching organisation query 'IEEE'
+      await tester.enterText(find.byType(TextField), 'IEEE');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Dropdown appears with ORGANISATIONS group
+      expect(find.text('ORGANISATIONS'), findsOneWidget);
+      expect(find.text('IEEE Student Branch'), findsAtLeastNWidgets(1));
+
+      // 3. Enter matching venue query 'Auditorium'
+      await tester.enterText(find.byType(TextField), 'Auditorium');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Dropdown appears with VENUES group
+      expect(find.text('VENUES'), findsOneWidget);
+      expect(find.text('Auditorium Hall'), findsAtLeastNWidgets(1));
+
+      // Tap on the venue suggestion in the dropdown
+      await tester.tap(find.text('Auditorium Hall').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Dropdown is dismissed and search text is populated
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.controller?.text, 'Auditorium Hall');
+      expect(find.text('VENUES'), findsNothing);
+
+      // The events list is filtered to only Auditorium Hall event
+      expect(find.text('HackVerse 2026: Campus Hackathon'), findsOneWidget);
+      expect(find.text('Rhythm Night: Musical Evening'), findsNothing);
+
+      // Clear search
+      await tester.tap(find.byIcon(Icons.cancel_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Both events are visible again
+      expect(find.text('HackVerse 2026: Campus Hackathon'), findsOneWidget);
+      expect(find.text('Rhythm Night: Musical Evening'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Updates status metric cards dynamically based on filters and pops '
+        'selected status card without Filtered by badge', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final statusEvents = [
+        StudentEvent(
+          id: 'event-1',
+          title: 'Live Workshop',
+          venue: 'Lab A',
+          startTime: now.subtract(const Duration(hours: 1)),
+          endTime: now.add(const Duration(hours: 2)),
+          tags: const ['Tech'],
+        ),
+        StudentEvent(
+          id: 'event-2',
+          title: 'Evening Seminar',
+          venue: 'Hall B',
+          startTime: now.add(const Duration(hours: 3)),
+          endTime: now.add(const Duration(hours: 5)),
+          tags: const ['Tech'],
+          isPaid: true,
+        ),
+        StudentEvent(
+          id: 'event-3',
+          title: 'Cultural Festival',
+          venue: 'Grounds',
+          startTime: now.add(const Duration(days: 3)),
+          endTime: now.add(const Duration(days: 4)),
+          tags: const ['Cultural'],
+          isDutyLeaveApproved: true,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeEventsNotifier(statusEvents),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(mockRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 1. Initial counts: 1 Happening Now, 1 Scheduled Today, 1 Upcoming
+      expect(find.text('Happening Now'), findsOneWidget);
+      expect(find.text('Scheduled Today'), findsOneWidget);
+      expect(find.text('Upcoming'), findsOneWidget);
+
+      // 2. Select 'Tech' category
+      await tester.tap(find.text('Tech'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // In Tech category, Cultural event is excluded, so Upcoming count is 0
+      // 3. Toggle 'Free Entry' chip
+      await tester.tap(find.text('Free Entry').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // 4. Tap 'Happening Now' status card to pop it as active filter
+      await tester.tap(find.text('Happening Now'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Verify selected card pops with clear prompt and NO 'Filtered by' badge
+      expect(find.text('Tap to clear filter'), findsOneWidget);
+      expect(find.textContaining('Filtered by'), findsNothing);
+
+      // Verify event list shows only Live Workshop
+      expect(find.text('Live Workshop'), findsOneWidget);
+      expect(find.text('Evening Seminar'), findsNothing);
+      expect(find.text('Cultural Festival'), findsNothing);
+
+      // 5. Tap again to clear the status filter
+      await tester.tap(find.text('Happening Now'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Tap to clear filter'), findsNothing);
+    });
+
+    testWidgets('Renders ErrorStateCard when events fail to load',
+        (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeErrorEventsNotifier('Network connection failed'),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(mockRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Unable to Load Campus Events'), findsOneWidget);
+      expect(find.text('Network connection failed'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
     });
   });
 
@@ -407,7 +756,9 @@ void main() {
                 builder: (ctx) => Center(
                   child: ElevatedButton(
                     onPressed: () {
-                      unawaited(QrPassDialog.show(ctx, mockRegistrations.first));
+                      unawaited(
+                        QrPassDialog.show(ctx, mockRegistrations.first),
+                      );
                     },
                     child: const Text('Open Pass'),
                   ),
@@ -510,5 +861,39 @@ class FakeRegistrationsNotifier extends StudentRegistrationsNotifier {
   @override
   Future<void> loadRegistrations() async {
     state = AsyncValue.data(_initialData);
+  }
+}
+
+class FakeErrorEventsNotifier extends StudentEventsNotifier {
+  FakeErrorEventsNotifier(this.errorMessage)
+      : super(
+          service: StudentService(),
+          studentId: 'test-student-id',
+        ) {
+    state = AsyncValue.error(errorMessage, StackTrace.empty);
+  }
+
+  final String errorMessage;
+
+  @override
+  Future<void> loadEvents() async {
+    state = AsyncValue.error(errorMessage, StackTrace.empty);
+  }
+}
+
+class FakeErrorRegistrationsNotifier extends StudentRegistrationsNotifier {
+  FakeErrorRegistrationsNotifier(this.errorMessage)
+      : super(
+          service: StudentService(),
+          studentId: 'test-student-id',
+        ) {
+    state = AsyncValue.error(errorMessage, StackTrace.empty);
+  }
+
+  final String errorMessage;
+
+  @override
+  Future<void> loadRegistrations() async {
+    state = AsyncValue.error(errorMessage, StackTrace.empty);
   }
 }

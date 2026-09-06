@@ -32,8 +32,52 @@ class _StudentShellState extends ConsumerState<StudentShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<List<StudentRegistration>>>(
+      studentRegistrationsProvider,
+      (previous, next) {
+        if (!next.isLoading && next.hasError && !next.hasValue) {
+          final errorMsg = next.error?.toString() ?? 'Failed to load passes';
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      errorMsg,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: () {
+                  unawaited(
+                    ref
+                        .read(studentRegistrationsProvider.notifier)
+                        .loadRegistrations(),
+                  );
+                },
+              ),
+            ),
+          );
+        }
+      },
+    );
+
     final regsAsync = ref.watch(studentRegistrationsProvider);
-    final activePasses = regsAsync.value
+    final activePasses = regsAsync.valueOrNull
             ?.where((r) => r.isActive)
             .toList() ??
         const <StudentRegistration>[];
@@ -59,6 +103,8 @@ class _StudentShellState extends ConsumerState<StudentShell> {
       destinations: [
         NavDestinationItem(
           label: 'Overview',
+          shortLabel: 'Home',
+          accentColor: const Color(0xFF2563EB), // Electric Royal Blue
           icon: Icons.dashboard_outlined,
           selectedIcon: Icons.dashboard_rounded,
           body: StudentOverviewTab(
@@ -68,24 +114,32 @@ class _StudentShellState extends ConsumerState<StudentShell> {
         ),
         const NavDestinationItem(
           label: 'Academics',
+          shortLabel: 'Academics',
+          accentColor: Color(0xFF7C3AED), // Luminous Violet
           icon: Icons.school_outlined,
           selectedIcon: Icons.school_rounded,
           body: StudentAcademicsTab(),
         ),
         const NavDestinationItem(
           label: 'Events & Passes',
+          shortLabel: 'Events',
+          accentColor: Color(0xFFEA580C), // Vibrant Amber Orange
           icon: Icons.confirmation_number_outlined,
           selectedIcon: Icons.confirmation_number_rounded,
           body: StudentEventsTab(),
         ),
         const NavDestinationItem(
           label: 'Clubs & Union',
+          shortLabel: 'Clubs',
+          accentColor: Color(0xFF059669), // Emerald Mint
           icon: Icons.groups_outlined,
           selectedIcon: Icons.groups_rounded,
           body: StudentClubsTab(),
         ),
         const NavDestinationItem(
           label: 'My Profile',
+          shortLabel: 'Profile',
+          accentColor: Color(0xFFDB2777), // Rose Pink
           icon: Icons.person_outline_rounded,
           selectedIcon: Icons.person_rounded,
           body: StudentProfileTab(),

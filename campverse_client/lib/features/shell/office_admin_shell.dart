@@ -32,6 +32,7 @@ class _OfficeAdminShellState extends State<OfficeAdminShell> {
       destinations: [
         NavDestinationItem(
           label: 'Dashboard',
+          accentColor: const Color(0xFF2563EB),
           icon: Icons.dashboard_outlined,
           selectedIcon: Icons.dashboard_rounded,
           body: CampusDashboardPage(
@@ -41,12 +42,14 @@ class _OfficeAdminShellState extends State<OfficeAdminShell> {
         ),
         const NavDestinationItem(
           label: 'Institute',
+          accentColor: Color(0xFF0284C7),
           icon: Icons.domain_outlined,
           selectedIcon: Icons.domain_rounded,
           body: InstituteManagementPage(role: AppRole.officeAdmin),
         ),
         const NavDestinationItem(
           label: 'Admissions',
+          accentColor: Color(0xFF059669),
           icon: Icons.how_to_reg_outlined,
           selectedIcon: Icons.how_to_reg_rounded,
           body: RoleDashboardView(
@@ -63,6 +66,8 @@ class _OfficeAdminShellState extends State<OfficeAdminShell> {
         ),
         const NavDestinationItem(
           label: 'Certificates',
+          shortLabel: 'Certs',
+          accentColor: Color(0xFF7C3AED),
           icon: Icons.verified_outlined,
           selectedIcon: Icons.verified_rounded,
           body: RoleDashboardView(
@@ -79,6 +84,8 @@ class _OfficeAdminShellState extends State<OfficeAdminShell> {
         ),
         const NavDestinationItem(
           label: 'Fee & Ops',
+          shortLabel: 'Fees',
+          accentColor: Color(0xFFEA580C),
           icon: Icons.receipt_long_outlined,
           selectedIcon: Icons.receipt_long_rounded,
           body: RoleDashboardView(

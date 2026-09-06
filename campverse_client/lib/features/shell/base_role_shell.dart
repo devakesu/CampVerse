@@ -15,13 +15,21 @@ class NavDestinationItem {
   /// Default constructor for NavDestinationItem.
   const NavDestinationItem({
     required this.label,
+    this.shortLabel,
+    this.accentColor,
     required this.icon,
     required this.selectedIcon,
     required this.body,
   });
 
-  /// Tab label displayed in navigation bars.
+  /// Full tab label displayed in desktop sidebars and header bars.
   final String label;
+
+  /// Short concise label displayed in mobile / smaller display navigation bars.
+  final String? shortLabel;
+
+  /// Optional signature accent color for this specific destination tab.
+  final Color? accentColor;
 
   /// Default icon.
   final IconData icon;
@@ -31,6 +39,9 @@ class NavDestinationItem {
 
   /// Content widget rendered when this tab is selected.
   final Widget body;
+
+  /// Resolves the concise label for smaller viewports.
+  String get displayShortLabel => shortLabel ?? label;
 }
 
 /// Adaptive base shell providing multiplatform desktop/mobile workspace
@@ -229,7 +240,7 @@ class _BaseRoleShellState extends ConsumerState<BaseRoleShell> {
           Positioned.fill(
             child: Padding(
               padding: EdgeInsets.only(
-                bottom: widget.destinations.length > 1 ? 80 : 0,
+                bottom: widget.destinations.length > 1 ? 84 : 0,
               ),
               child: currentTab != null
                   ? currentTab.body
@@ -250,6 +261,8 @@ class _BaseRoleShellState extends ConsumerState<BaseRoleShell> {
                 tabs: widget.destinations.map((d) {
                   return FloatingNavTab(
                     label: d.label,
+                    shortLabel: d.shortLabel,
+                    accentColor: d.accentColor,
                     icon: d.icon,
                     selectedIcon: d.selectedIcon,
                   );

@@ -32,7 +32,7 @@ class _StudentClubsTabState extends ConsumerState<StudentClubsTab> {
     final isDesktop = ResponsiveLayout.isDesktop(context);
     final clubsAsync = ref.watch(studentClubsProvider);
 
-    final allClubs = clubsAsync.value ?? const <StudentClub>[];
+    final allClubs = clubsAsync.valueOrNull ?? const <StudentClub>[];
     final studentUnion = allClubs.firstWhere(
       (c) => c.isStudentUnion,
       orElse: () => const StudentClub(

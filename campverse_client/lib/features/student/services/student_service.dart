@@ -80,8 +80,27 @@ class StudentService {
         ),
       );
     } on Exception catch (e) {
-      return ApiResponse.failure('Failed to load class details: $e');
+      return ApiResponse.failure(
+        _formatError('Failed to load class details', e),
+      );
     }
+  }
+
+  String _formatError(String prefix, Object error) {
+    if (error is PostgrestException) {
+      if (error.code == '42501') {
+        return '$prefix: Access permission denied (42501). '
+            'Please check permissions or re-login.';
+      }
+      if (error.code == '23505') {
+        return '$prefix: A record with this value already exists.';
+      }
+      return '$prefix: ${error.message}';
+    }
+    if (error is AuthException) {
+      return '$prefix: ${error.message}';
+    }
+    return '$prefix: $error';
   }
 
   // ── Courses ────────────────────────────────────────────────────────────────
@@ -204,7 +223,7 @@ class StudentService {
         ),
       ]);
     } on Exception catch (e) {
-      return ApiResponse.failure('Failed to load courses: $e');
+      return ApiResponse.failure(_formatError('Failed to load courses', e));
     }
   }
 
@@ -264,7 +283,7 @@ class StudentService {
 
       return ApiResponse.success(mockEntries);
     } on Exception catch (e) {
-      return ApiResponse.failure('Failed to load timetable: $e');
+      return ApiResponse.failure(_formatError('Failed to load timetable', e));
     }
   }
 
@@ -311,7 +330,7 @@ class StudentService {
 
       return ApiResponse.success([]);
     } on Exception catch (e) {
-      return ApiResponse.failure('Failed to load events: $e');
+      return ApiResponse.failure(_formatError('Failed to load events', e));
     }
   }
 
@@ -335,7 +354,9 @@ class StudentService {
 
       return ApiResponse.success([]);
     } on Exception catch (e) {
-      return ApiResponse.failure('Failed to load registrations: $e');
+      return ApiResponse.failure(
+        _formatError('Failed to load registrations', e),
+      );
     }
   }
 
@@ -381,7 +402,9 @@ class StudentService {
 
       return ApiResponse.success(true);
     } on Exception catch (e) {
-      return ApiResponse.failure('Failed to cancel registration: $e');
+      return ApiResponse.failure(
+        _formatError('Failed to cancel registration', e),
+      );
     }
   }
 
@@ -495,7 +518,7 @@ class StudentService {
         ),
       ]);
     } on Exception catch (e) {
-      return ApiResponse.failure('Failed to load clubs: $e');
+      return ApiResponse.failure(_formatError('Failed to load clubs', e));
     }
   }
 

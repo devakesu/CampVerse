@@ -37,6 +37,7 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
       destinations: [
         NavDestinationItem(
           label: 'Dashboard',
+          accentColor: const Color(0xFF7C3AED),
           icon: Icons.dashboard_outlined,
           selectedIcon: Icons.dashboard_rounded,
           body: SuperAdminDashboardPage(
@@ -45,18 +46,23 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
         ),
         const NavDestinationItem(
           label: 'Universities',
+          shortLabel: 'Unis',
+          accentColor: Color(0xFF2563EB),
           icon: Icons.account_balance_outlined,
           selectedIcon: Icons.account_balance_rounded,
           body: UniversitiesPage(),
         ),
         const NavDestinationItem(
           label: 'Institutes',
+          accentColor: Color(0xFF0284C7),
           icon: Icons.domain_outlined,
           selectedIcon: Icons.domain_rounded,
           body: InstitutesPage(),
         ),
         const NavDestinationItem(
           label: 'System Logs',
+          shortLabel: 'Logs',
+          accentColor: Color(0xFF059669),
           icon: Icons.terminal_outlined,
           selectedIcon: Icons.terminal_rounded,
           body: AuditLogPage(),
