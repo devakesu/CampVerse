@@ -178,8 +178,8 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
         orgs.add(e.primaryOrgName);
       }
       for (final col in e.collaborators) {
-        if (col.toLowerCase().contains(query)) {
-          orgs.add(col);
+        if (col.name.toLowerCase().contains(query)) {
+          orgs.add(col.name);
         }
       }
     }
@@ -260,7 +260,7 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
         (e.description != null &&
             e.description!.toLowerCase().contains(query)) ||
         e.tags.any((t) => t.toLowerCase().contains(query)) ||
-        e.collaborators.any((c) => c.toLowerCase().contains(query));
+        e.collaborators.any((c) => c.name.toLowerCase().contains(query));
 
     final matchesDutyLeave = !_filterDutyLeaveOnly || e.isDutyLeaveApproved;
     final matchesFree = !_filterFreeOnly || !e.isPaid;

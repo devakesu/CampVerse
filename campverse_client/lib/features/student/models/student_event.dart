@@ -64,6 +64,7 @@ class EventEligibility {
   const EventEligibility({
     this.allowedProgrammes = const [],
     this.allowedSemesters = const [],
+    this.allowedSex = const [],
     this.genderRestriction,
   });
 
@@ -89,10 +90,40 @@ class EventEligibility {
       }
     }
 
+    final sexList = <String>[];
+    final rawSex = json['allowed_sex'] ??
+        json['sex_restriction'] ??
+        json['gender_restriction'];
+
+    if (rawSex is List) {
+      for (final s in rawSex) {
+        final code = s?.toString().trim().toUpperCase();
+        if (code != null && code.isNotEmpty) {
+          sexList.add(code);
+        }
+      }
+    } else if (rawSex is String && rawSex.trim().isNotEmpty) {
+      final upper = rawSex.trim().toUpperCase();
+      if (upper == 'F' ||
+          upper.startsWith('FEMALE') ||
+          upper.contains('WOMEN')) {
+        sexList.add('F');
+      } else if (upper == 'M' ||
+          upper.startsWith('MALE') ||
+          upper.contains('MEN')) {
+        sexList.add('M');
+      } else if (upper == 'T' || upper.contains('TRANS')) {
+        sexList.add('T');
+      } else if (upper != 'ALL' && upper != 'NONE' && upper != 'NULL') {
+        sexList.add(upper);
+      }
+    }
+
     return EventEligibility(
       allowedProgrammes: progs,
       allowedSemesters: sems,
-      genderRestriction: json['gender_restriction'] as String?,
+      allowedSex: List.unmodifiable(sexList),
+      genderRestriction: sexList.isNotEmpty ? sexList.join(', ') : null,
     );
   }
 
@@ -102,14 +133,50 @@ class EventEligibility {
   /// List of allowed semester numbers (e.g. [1, 2]).
   final List<int> allowedSemesters;
 
-  /// Optional gender restriction string if applicable.
+  /// Allowed sex codes (e.g. ['M'], ['F'], ['T']).
+  /// An empty list indicates open to all.
+  final List<String> allowedSex;
+
+  /// Legacy field for backward compatibility.
   final String? genderRestriction;
+
+  /// Helper to convert single sex code to friendly name.
+  static String formatSexCode(String code) {
+    switch (code.toUpperCase()) {
+      case 'F':
+        return 'Female';
+      case 'M':
+        return 'Male';
+      case 'T':
+        return 'Transgender';
+      case 'O':
+        return 'Other';
+      default:
+        return code;
+    }
+  }
 
   /// Whether eligibility criteria is open to all students.
   bool get isOpenToAll =>
-      allowedProgrammes.isEmpty &&
-      allowedSemesters.isEmpty &&
-      genderRestriction == null;
+      allowedProgrammes.isEmpty && allowedSemesters.isEmpty && isAllSex;
+
+  /// Whether no sex/gender restriction is imposed.
+  bool get isAllSex =>
+      allowedSex.isEmpty ||
+      (allowedSex.contains('M') &&
+          allowedSex.contains('F') &&
+          allowedSex.contains('T'));
+
+  /// Backward-compatible alias for [isAllSex].
+  bool get isAllGenders => isAllSex;
+
+  /// Checks if a student with the given sex code is allowed.
+  bool isAllowedForSex(String? studentSex) {
+    if (isAllSex || studentSex == null || studentSex.trim().isEmpty) {
+      return true;
+    }
+    return allowedSex.contains(studentSex.trim().toUpperCase());
+  }
 
   /// Human-readable eligibility summary badge.
   String get summaryText {
@@ -127,11 +194,45 @@ class EventEligibility {
     if (allowedProgrammes.isNotEmpty) {
       parts.add(allowedProgrammes.join('/'));
     }
-    if (genderRestriction != null && genderRestriction!.isNotEmpty) {
-      parts.add(genderRestriction!);
+    if (!isAllSex && allowedSex.isNotEmpty) {
+      if (allowedSex.length == 1) {
+        parts.add('${formatSexCode(allowedSex.first)} Only');
+      } else {
+        parts.add(allowedSex.map(formatSexCode).join(' / '));
+      }
     }
     return parts.join(' • ');
   }
+
+  /// Display string for allowed semesters.
+  String get semesterDisplay => allowedSemesters.isNotEmpty
+      ? 'Semesters: ${allowedSemesters.map((s) => 'S$s').join(', ')}'
+      : 'Semesters: All Semesters';
+
+  /// Display string for allowed programmes.
+  String get programmeDisplay => allowedProgrammes.isNotEmpty
+      ? 'Branches: ${allowedProgrammes.join(', ')}'
+      : 'Branches: All Programmes';
+
+  /// Display string for sex / gender restriction.
+  String get sexDisplay {
+    if (isAllSex) {
+      return 'Sex: Open to All';
+    }
+    if (allowedSex.length == 1) {
+      return 'Sex: ${formatSexCode(allowedSex.first)} Only';
+    }
+    return 'Sex: ${allowedSex.map(formatSexCode).join(' & ')}';
+  }
+
+  /// Backward-compatible alias for [sexDisplay].
+  String get genderDisplay => sexDisplay;
+
+  /// Whether all semesters are eligible.
+  bool get isAllSemesters => allowedSemesters.isEmpty;
+
+  /// Whether all academic programmes are eligible.
+  bool get isAllProgrammes => allowedProgrammes.isEmpty;
 }
 
 /// Coordinator or public contact for campus events.
@@ -142,6 +243,7 @@ class EventContact {
     required this.name,
     required this.role,
     required this.phone,
+    this.email,
   });
 
   /// Factory constructor parsing from JSON payload.
@@ -150,6 +252,7 @@ class EventContact {
       name: json['name'] as String? ?? '',
       role: json['role'] as String? ?? 'Coordinator',
       phone: json['phone'] as String? ?? '',
+      email: json['email'] as String?,
     );
   }
 
@@ -161,6 +264,85 @@ class EventContact {
 
   /// Contact phone number with dial prefix.
   final String phone;
+
+  /// Optional contact email address.
+  final String? email;
+}
+
+/// Co-organizer or partner organization for an event.
+@immutable
+class EventCollaborator {
+  /// Default constructor for co-organizer.
+  const EventCollaborator({
+    required this.name,
+    this.logo,
+    this.title,
+  });
+
+  /// Factory constructor parsing from mixed dynamic value or map.
+  factory EventCollaborator.fromEntry(String name, dynamic value) {
+    String? logoUrl;
+    String? titleText;
+
+    if (value is Map) {
+      logoUrl = value['logo']?.toString();
+      titleText = value['title']?.toString();
+    } else if (value is List && value.isNotEmpty) {
+      final first = value.first;
+      if (first is Map) {
+        logoUrl = first['logo']?.toString();
+        titleText = first['title']?.toString();
+      } else if (first is String && first.isNotEmpty) {
+        logoUrl = first;
+      }
+    } else if (value is String && value.isNotEmpty) {
+      logoUrl = value;
+    }
+
+    final cleanedLogo = (logoUrl != null && logoUrl.trim().isNotEmpty)
+        ? logoUrl.trim()
+        : null;
+    final cleanedTitle = (titleText != null && titleText.trim().isNotEmpty)
+        ? titleText.trim()
+        : null;
+
+    return EventCollaborator(
+      name: name,
+      logo: cleanedLogo,
+      title: cleanedTitle,
+    );
+  }
+
+  /// Name of the co-organizing body or partner institute.
+  final String name;
+
+  /// Optional logo image URL of the collaborator.
+  final String? logo;
+
+  /// Optional partner role or designation (e.g. 'Technical Partner',
+  /// 'Knowledge Partner').
+  final String? title;
+
+  /// Whether a valid non-empty logo URL is provided.
+  bool get hasLogo => logo != null && logo!.trim().isNotEmpty;
+
+  /// Whether a valid non-empty title or role is provided.
+  bool get hasTitle => title != null && title!.trim().isNotEmpty;
+
+  @override
+  String toString() => name;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventCollaborator &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          logo == other.logo &&
+          title == other.title;
+
+  @override
+  int get hashCode => Object.hash(name, logo, title);
 }
 
 /// Represents a campus event discoverable by students.
@@ -185,6 +367,7 @@ class StudentEvent {
     this.isFeatured = false,
     this.shortDescription,
     this.description,
+    this.regStart,
     this.regEnd,
     this.regConfig = true,
     this.visibility = 'institute',
@@ -224,11 +407,37 @@ class StudentEvent {
       }
     }
 
-    final collaboratorsList = <String>[];
-    if (json['collaborators'] is List) {
-      for (final c in json['collaborators'] as List) {
-        if (c is String && c.isNotEmpty) {
-          collaboratorsList.add(c);
+    final collaboratorsList = <EventCollaborator>[];
+    final rawCollaborators = json['collaborators'];
+    if (rawCollaborators is Map) {
+      for (final entry in rawCollaborators.entries) {
+        final name = entry.key?.toString().trim() ?? '';
+        if (name.isNotEmpty) {
+          collaboratorsList.add(
+            EventCollaborator.fromEntry(name, entry.value),
+          );
+        }
+      }
+    } else if (rawCollaborators is List) {
+      for (final item in rawCollaborators) {
+        if (item is String && item.trim().isNotEmpty) {
+          collaboratorsList.add(EventCollaborator(name: item.trim()));
+        } else if (item is Map) {
+          final name =
+              (item['name'] ?? item['organization'])?.toString().trim() ?? '';
+          if (name.isNotEmpty) {
+            final logo = item['logo']?.toString();
+            final title = item['title']?.toString();
+            collaboratorsList.add(EventCollaborator(
+              name: name,
+              logo: logo != null && logo.trim().isNotEmpty
+                  ? logo.trim()
+                  : null,
+              title: title != null && title.trim().isNotEmpty
+                  ? title.trim()
+                  : null,
+            ));
+          }
         }
       }
     }
@@ -285,6 +494,9 @@ class StudentEvent {
             DateTime.now().add(const Duration(days: 2));
     final endParsed = DateTime.tryParse(json['end_time']?.toString() ?? '') ??
         startParsed.add(const Duration(hours: 3));
+    final regStartParsed = DateTime.tryParse(
+      (json['reg_start'] ?? json['reg_start_time'])?.toString() ?? '',
+    );
     final regEndParsed =
         DateTime.tryParse(json['reg_end']?.toString() ?? '');
 
@@ -306,6 +518,7 @@ class StudentEvent {
       isFeatured: json['is_featured'] as bool? ?? false,
       shortDescription: json['short_description'] as String?,
       description: json['description'] as String?,
+      regStart: regStartParsed,
       regEnd: regEndParsed,
       regConfig: json['reg_config'] as bool? ?? true,
       visibility: json['visibility'] as String? ?? 'institute',
@@ -382,6 +595,9 @@ class StudentEvent {
   /// Comprehensive description shown on detailed sheets.
   final String? description;
 
+  /// Registration opening timestamp.
+  final DateTime? regStart;
+
   /// Registration deadline timestamp.
   final DateTime? regEnd;
 
@@ -395,7 +611,11 @@ class StudentEvent {
   final String status;
 
   /// Co-organizing clubs or partner institutes.
-  final List<String> collaborators;
+  final List<EventCollaborator> collaborators;
+
+  /// List of collaborator names for quick text matching and filters.
+  List<String> get collaboratorNames =>
+      collaborators.map((c) => c.name).toList();
 
   /// Structured agenda/timeline items.
   final List<EventItineraryItem> itinerary;
@@ -438,19 +658,52 @@ class StudentEvent {
 
   // ── Helper Getters ─────────────────────────────────────────────────────────
 
+  /// Whether the event has been officially cancelled.
+  bool get isCancelled => status.toLowerCase() == 'cancelled';
+
+  /// Whether the event has already concluded.
+  bool get isCompleted => status.toLowerCase() == 'completed';
+
+  /// Whether the event has any academic or attendance incentives.
+  bool get hasIncentives =>
+      ktuActivityPoints > 0 || isDutyLeaveApproved || isCertificateProvided;
+
+  /// Whether registration has not yet opened.
+  bool get isRegistrationUpcoming {
+    if (!regConfig || status != 'published') {
+      return false;
+    }
+    if (regStart == null) {
+      return false;
+    }
+    return DateTime.now().isBefore(regStart!);
+  }
+
   /// Whether registrations are currently accepted.
   bool get isRegistrationOpen {
     if (!regConfig || status != 'published') {
       return false;
     }
+    final now = DateTime.now();
+    if (regStart != null && now.isBefore(regStart!)) {
+      return false;
+    }
     if (regEnd == null) {
       return true;
     }
-    return DateTime.now().isBefore(regEnd!);
+    return now.isBefore(regEnd!);
   }
 
   /// Whether the registration deadline has elapsed.
-  bool get isRegistrationClosed => !isRegistrationOpen;
+  bool get isRegistrationClosed {
+    if (!regConfig || status != 'published') {
+      return true;
+    }
+    if (regEnd != null && DateTime.now().isAfter(regEnd!)) {
+      return true;
+    }
+    return false;
+  }
 
   /// Formatted price tag string (e.g. 'Free Entry' or '₹150' or 'From ₹199').
   String get formattedPrice {
@@ -473,6 +726,9 @@ class StudentEvent {
   /// Creates a copy with optional overrides.
   StudentEvent copyWith({
     bool? isRegisteredByMe,
+    DateTime? regStart,
+    DateTime? regEnd,
+    List<EventCollaborator>? collaborators,
   }) {
     return StudentEvent(
       id: id,
@@ -492,11 +748,12 @@ class StudentEvent {
       isFeatured: isFeatured,
       shortDescription: shortDescription,
       description: description,
-      regEnd: regEnd,
+      regStart: regStart ?? this.regStart,
+      regEnd: regEnd ?? this.regEnd,
       regConfig: regConfig,
       visibility: visibility,
       status: status,
-      collaborators: collaborators,
+      collaborators: collaborators ?? this.collaborators,
       itinerary: itinerary,
       pricingTiers: pricingTiers,
       isPaid: isPaid,

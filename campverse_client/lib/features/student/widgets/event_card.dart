@@ -101,6 +101,41 @@ class _EventCardState extends ConsumerState<EventCard> {
     }
   }
 
+  IconData _getCtaIcon(StudentEvent event) {
+    if (!event.regConfig) {
+      return Icons.door_front_door_outlined;
+    }
+    if (event.isCancelled) {
+      return Icons.cancel_outlined;
+    }
+    if (event.isCompleted) {
+      return Icons.event_available_outlined;
+    }
+    if (event.isRegistrationOpen) {
+      return Icons.confirmation_number_outlined;
+    }
+    return Icons.lock_clock_outlined;
+  }
+
+  String _getCtaLabel(StudentEvent event) {
+    if (_isRegistering) {
+      return 'Registering...';
+    }
+    if (!event.regConfig) {
+      return 'Walk-in';
+    }
+    if (event.isCancelled) {
+      return 'Cancelled';
+    }
+    if (event.isCompleted) {
+      return 'Concluded';
+    }
+    if (event.isRegistrationOpen) {
+      return 'Register';
+    }
+    return 'Closed';
+  }
+
   String _formatDate(DateTime dt) {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -317,26 +352,55 @@ class _EventCardState extends ConsumerState<EventCard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0369A1)
-                              .withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          event.primaryOrgName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0284C7),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (event.isFeatured) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0284C7),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'FEATURED',
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0369A1)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                event.primaryOrgName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF0284C7),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                     if (event.ktuActivityPoints > 0)
@@ -460,6 +524,47 @@ class _EventCardState extends ConsumerState<EventCard> {
                     spacing: 6,
                     runSpacing: 4,
                     children: [
+                      if (event.isCancelled)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDC2626)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Cancelled',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFDC2626),
+                            ),
+                          ),
+                        )
+                      else if (event.isCompleted)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF334155).withValues(alpha: 0.4)
+                                : const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Concluded',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ),
                       if (event.isDutyLeaveApproved)
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -491,9 +596,9 @@ class _EventCardState extends ConsumerState<EventCard> {
                             ],
                           ),
                         ),
-                      if (event.eligibility != null &&
-                          !event.eligibility!.isOpenToAll)
+                      if (event.eligibility != null)
                         Container(
+                          constraints: const BoxConstraints(maxWidth: 180),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 7,
                             vertical: 2.5,
@@ -506,6 +611,8 @@ class _EventCardState extends ConsumerState<EventCard> {
                           ),
                           child: Text(
                             event.eligibility!.summaryText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -556,7 +663,51 @@ class _EventCardState extends ConsumerState<EventCard> {
                                   : const Color(0xFF16A34A),
                             ),
                           ),
-                          if (event.regEnd != null)
+                          if (!event.regConfig)
+                            Text(
+                              'Walk-in',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: const Color(0xFF0284C7),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else if (event.isCancelled)
+                            Text(
+                              'Cancelled',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: const Color(0xFFDC2626),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else if (event.isCompleted)
+                            Text(
+                              'Concluded',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else if (event.regEnd != null)
+                            Text(
+                              event.isRegistrationUpcoming
+                                  ? 'Reg opens soon'
+                                  : (event.isRegistrationOpen
+                                      ? 'Reg open'
+                                      : 'Reg closed'),
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: event.isRegistrationUpcoming
+                                    ? const Color(0xFFD97706)
+                                    : (event.isRegistrationOpen
+                                        ? const Color(0xFF0284C7)
+                                        : const Color(0xFFDC2626)),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else
                             Text(
                               event.isRegistrationOpen
                                   ? 'Reg open'
@@ -596,10 +747,13 @@ class _EventCardState extends ConsumerState<EventCard> {
                         )
                       else
                         ElevatedButton.icon(
-                          onPressed:
-                              (!event.isRegistrationOpen || _isRegistering)
-                                  ? null
-                                  : () => unawaited(_handleRegister()),
+                          onPressed: (!event.isRegistrationOpen ||
+                                  _isRegistering ||
+                                  !event.regConfig)
+                              ? (!event.regConfig
+                                  ? () => EventDetailsSheet.show(context, event)
+                                  : null)
+                              : () => unawaited(_handleRegister()),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0369A1),
                             foregroundColor: Colors.white,
@@ -625,17 +779,11 @@ class _EventCardState extends ConsumerState<EventCard> {
                                   ),
                                 )
                               : Icon(
-                                  event.isRegistrationOpen
-                                      ? Icons.confirmation_number_outlined
-                                      : Icons.lock_clock_outlined,
+                                  _getCtaIcon(event),
                                   size: 16,
                                 ),
                           label: Text(
-                            _isRegistering
-                                ? 'Registering...'
-                                : (event.isRegistrationOpen
-                                    ? 'Register'
-                                    : 'Closed'),
+                            _getCtaLabel(event),
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
