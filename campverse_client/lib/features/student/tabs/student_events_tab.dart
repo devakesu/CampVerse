@@ -22,7 +22,7 @@ class StudentEventsTab extends ConsumerStatefulWidget {
     super.key,
   });
 
-  /// Initial subtab index (0: Discover, 1: My Passes).
+  /// Initial subtab index (0: Discover, 1: My Passes, 2: Past Events).
   final int initialSubTabIndex;
 
   @override
@@ -68,16 +68,34 @@ class EventCategoryItem {
 }
 
 class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabCtrl;
+  late TabController _passesTabCtrl;
   String _selectedCategory = 'All';
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
+
+  // Passes tab search controllers
+  final TextEditingController _passesSearchCtrl = TextEditingController();
+  final FocusNode _passesSearchFocus = FocusNode();
+  String _passesSearchQuery = '';
+  bool _isPassesSearchFocused = false;
+
+  // Discover tab search controllers
   final FocusNode _searchFocus = FocusNode();
   bool _isSearchFocused = false;
   final OverlayPortalController _searchDropdownCtrl = OverlayPortalController();
   final LayerLink _searchLayerLink = LayerLink();
   double _searchBarWidth = 400;
+
+  // Past events tab search controllers
+  final FocusNode _pastSearchFocus = FocusNode();
+  bool _isPastSearchFocused = false;
+  final OverlayPortalController _pastSearchDropdownCtrl =
+      OverlayPortalController();
+  final LayerLink _pastSearchLayerLink = LayerLink();
+  double _pastSearchBarWidth = 400;
+
   EventStatusFilter _statusFilter = EventStatusFilter.all;
 
   // Quick filter toggles
@@ -127,13 +145,29 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
   void initState() {
     super.initState();
     _tabCtrl = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
       initialIndex: widget.initialSubTabIndex,
     );
     _tabCtrl.addListener(() {
       if (mounted) {
         setState(() {});
+      }
+    });
+    _passesTabCtrl = TabController(
+      length: 2,
+      vsync: this,
+    );
+    _passesTabCtrl.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+    _passesSearchFocus.addListener(() {
+      if (mounted) {
+        setState(() {
+          _isPassesSearchFocused = _passesSearchFocus.hasFocus;
+        });
       }
     });
     _searchFocus.addListener(() {
@@ -143,13 +177,24 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
         });
       }
     });
+    _pastSearchFocus.addListener(() {
+      if (mounted) {
+        setState(() {
+          _isPastSearchFocused = _pastSearchFocus.hasFocus;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _passesTabCtrl.dispose();
+    _passesSearchCtrl.dispose();
+    _passesSearchFocus.dispose();
     _searchCtrl.dispose();
     _searchFocus.dispose();
+    _pastSearchFocus.dispose();
     super.dispose();
   }
 
@@ -218,7 +263,11 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
     if (_searchDropdownCtrl.isShowing) {
       _searchDropdownCtrl.hide();
     }
+    if (_pastSearchDropdownCtrl.isShowing) {
+      _pastSearchDropdownCtrl.hide();
+    }
     _searchFocus.unfocus();
+    _pastSearchFocus.unfocus();
   }
 
   bool _isHappeningNow(StudentEvent e, DateTime now) {
@@ -309,12 +358,32 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
       };
     }).toList();
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isNarrow = screenWidth < 520;
+    final discoverLabel = isNarrow ? 'Discover' : 'Discover Events';
+    final passesLabel = isNarrow ? 'Passes' : 'My Passes';
+    final pastLabel = isNarrow ? 'Past' : 'Past Events';
+
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
-            _searchFocus.requestFocus,
-        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-            _searchFocus.requestFocus,
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
+          if (_tabCtrl.index == 2) {
+            _pastSearchFocus.requestFocus();
+          } else if (_tabCtrl.index == 1) {
+            _passesSearchFocus.requestFocus();
+          } else {
+            _searchFocus.requestFocus();
+          }
+        },
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () {
+          if (_tabCtrl.index == 2) {
+            _pastSearchFocus.requestFocus();
+          } else if (_tabCtrl.index == 1) {
+            _passesSearchFocus.requestFocus();
+          } else {
+            _searchFocus.requestFocus();
+          }
+        },
       },
       child: Focus(
         child: Scaffold(
@@ -340,20 +409,34 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                     child: _buildTopTabBox(
                       context,
                       index: 0,
-                      label: 'Discover Events',
+                      label: discoverLabel,
+                      fullLabel: 'Discover Events',
                       icon: Icons.explore_rounded,
                       activeColor: const Color(0xFF0284C7),
                       isCompact: !isDesktop,
                     ),
                   ),
-                  SizedBox(width: isDesktop ? 12 : 8),
+                  SizedBox(width: isDesktop ? 12 : 6),
                   Expanded(
                     child: _buildTopTabBox(
                       context,
                       index: 1,
-                      label: 'My Passes',
+                      label: passesLabel,
+                      fullLabel: 'My Passes',
                       icon: Icons.confirmation_number_rounded,
                       activeColor: const Color(0xFF16A34A),
+                      isCompact: !isDesktop,
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 12 : 6),
+                  Expanded(
+                    child: _buildTopTabBox(
+                      context,
+                      index: 2,
+                      label: pastLabel,
+                      fullLabel: 'Past Events',
+                      icon: Icons.history_rounded,
+                      activeColor: const Color(0xFF8B5CF6),
                       isCompact: !isDesktop,
                     ),
                   ),
@@ -373,7 +456,18 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                 eventsAsync: eventsAsync,
                 now: now,
               ),
-              _buildMyPassesView(context, allRegs, regsAsync),
+              _buildMyPassesView(
+                context,
+                allRegs,
+                regsAsync,
+                now: now,
+              ),
+              _buildPastEventsView(
+                context,
+                allEvents: allEvents,
+                eventsAsync: eventsAsync,
+                now: now,
+              ),
             ],
           ),
         ),
@@ -559,7 +653,13 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                       ),
                     );
                   },
-                  child: _buildModernSearchBar(context, allEvents),
+                  child: _buildModernSearchBar(
+                    context,
+                    allEvents,
+                    focusNode: _searchFocus,
+                    dropdownCtrl: _searchDropdownCtrl,
+                    isFocused: _isSearchFocused,
+                  ),
                 ),
               );
             },
@@ -569,75 +669,7 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
         const SizedBox(height: 14),
 
         // Category Selector & Quick Filters (Duty Leave & Free Entry)
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 760;
-
-            final desktopCategoriesWidget = SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              clipBehavior: Clip.none,
-              child: Row(
-                children: _categories.map((cat) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _buildCategoryItem(
-                      context,
-                      item: cat,
-                      isSelected: _selectedCategory == cat.id,
-                      onTap: () => setState(() => _selectedCategory = cat.id),
-                    ),
-                  );
-                }).toList(),
-              ),
-            );
-
-            final badgesWidget = Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: isWide
-                  ? MainAxisAlignment.start
-                  : MainAxisAlignment.center,
-              children: [
-                _buildToggleFilter(
-                  label: 'Duty Leave',
-                  icon: Icons.verified_user_outlined,
-                  isActive: _filterDutyLeaveOnly,
-                  onTap: () => setState(
-                    () => _filterDutyLeaveOnly = !_filterDutyLeaveOnly,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _buildToggleFilter(
-                  label: 'Free Entry',
-                  icon: Icons.payments_outlined,
-                  isActive: _filterFreeOnly,
-                  onTap: () => setState(
-                    () => _filterFreeOnly = !_filterFreeOnly,
-                  ),
-                ),
-              ],
-            );
-
-            if (isWide) {
-              return Row(
-                children: [
-                  Expanded(child: desktopCategoriesWidget),
-                  const SizedBox(width: 14),
-                  badgesWidget,
-                ],
-              );
-            }
-
-            // Mobile / Small displays: Non-scrolling category picker + centered badges
-            return Column(
-              children: [
-                _buildMobileCategorySelector(context),
-                const SizedBox(height: 10),
-                Center(child: badgesWidget),
-              ],
-            );
-          },
-        ),
+        _buildCategorySelectorSection(context),
 
         const SizedBox(height: 20),
 
@@ -754,6 +786,7 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
     required String label,
     required IconData icon,
     required Color activeColor,
+    String? fullLabel,
     bool isCompact = false,
   }) {
     final isSelected = _tabCtrl.index == index;
@@ -761,82 +794,87 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
     final border = AppColors.borderOf(context);
     final textSecondary = AppColors.textSecondaryOf(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          _tabCtrl.animateTo(index);
-          setState(() {});
-        },
-        borderRadius: BorderRadius.circular(14),
-        hoverColor: activeColor.withValues(alpha: 0.06),
-        splashColor: activeColor.withValues(alpha: 0.12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 8 : 14,
-            vertical: 10,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark
-                    ? activeColor.withValues(alpha: 0.16)
-                    : activeColor.withValues(alpha: 0.08))
-                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isSelected ? activeColor : border,
-              width: isSelected ? 1.5 : 1.0,
+    return Tooltip(
+      message: fullLabel ?? label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _tabCtrl.animateTo(index);
+            setState(() {});
+          },
+          borderRadius: BorderRadius.circular(14),
+          hoverColor: activeColor.withValues(alpha: 0.06),
+          splashColor: activeColor.withValues(alpha: 0.12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 6 : 14,
+              vertical: 10,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: activeColor.withValues(alpha: 0.12),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.all(isCompact ? 4 : 5),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? activeColor.withValues(alpha: 0.18)
-                      : Colors.transparent,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: isCompact ? 16 : 18,
-                  color: isSelected ? activeColor : textSecondary,
-                ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? (isDark
+                      ? activeColor.withValues(alpha: 0.16)
+                      : activeColor.withValues(alpha: 0.08))
+                  : (isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected ? activeColor : border,
+                width: isSelected ? 1.5 : 1.0,
               ),
-              SizedBox(width: isCompact ? 6 : 8),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    style: GoogleFonts.outfit(
-                      fontSize: isCompact ? 13 : 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w600,
-                      color: isSelected
-                          ? (isDark ? Colors.white : activeColor)
-                          : textSecondary,
-                      letterSpacing: -0.3,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: activeColor.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: EdgeInsets.all(isCompact ? 3.5 : 5),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? activeColor.withValues(alpha: 0.18)
+                        : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: isCompact ? 15 : 18,
+                    color: isSelected ? activeColor : textSecondary,
+                  ),
+                ),
+                SizedBox(width: isCompact ? 4 : 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      style: GoogleFonts.outfit(
+                        fontSize: isCompact ? 12.5 : 14,
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w600,
+                        color: isSelected
+                            ? (isDark ? Colors.white : activeColor)
+                            : textSecondary,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -858,6 +896,8 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
     final border = AppColors.borderOf(context);
     final textSecondary = AppColors.textSecondaryOf(context);
     final textPrimary = AppColors.textPrimaryOf(context);
+
+    final showLivePip = title == 'Happening Now' && count > 0 && !isSelected;
 
     return Material(
       color: Colors.transparent,
@@ -885,33 +925,68 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                     colors: isDark
                         ? [
                             accentColor.withValues(alpha: 0.28),
-                            accentColor.withValues(alpha: 0.12),
+                            accentColor.withValues(alpha: 0.10),
+                            const Color(0xFF1E293B),
                           ]
                         : [
-                            accentColor.withValues(alpha: 0.18),
-                            accentColor.withValues(alpha: 0.05),
+                            accentColor.withValues(alpha: 0.15),
+                            accentColor.withValues(alpha: 0.04),
+                            Colors.white,
                           ],
                   )
-                : null,
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [
+                            const Color(0xFF1E293B),
+                            const Color(0xFF0F172A),
+                          ]
+                        : [
+                            Colors.white,
+                            accentColor.withValues(alpha: 0.035),
+                          ],
+                  ),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isSelected
                   ? accentColor
                   : (isDark ? border : const Color(0xFFE2E8F0)),
-              width: isSelected ? 2.0 : 1.0,
+              width: isSelected ? 1.8 : 1.0,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: isSelected
-                    ? accentColor.withValues(alpha: isDark ? 0.42 : 0.28)
-                    : (isDark
-                        ? Colors.black.withValues(alpha: 0.2)
-                        : const Color(0xFF0F172A).withValues(alpha: 0.04)),
-                blurRadius: isSelected ? 16 : 6,
-                spreadRadius: isSelected ? 1 : 0,
-                offset: Offset(0, isSelected ? 6 : 3),
-              ),
-            ],
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: accentColor.withValues(
+                        alpha: isDark ? 0.38 : 0.22,
+                      ),
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 6),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.25 : 0.04,
+                      ),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A)
+                          .withValues(alpha: isDark ? 0.25 : 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: accentColor.withValues(
+                        alpha: isDark ? 0.05 : 0.02,
+                      ),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -922,25 +997,47 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: EdgeInsets.all(isCompact ? 5 : 7),
+                    padding: EdgeInsets.all(isCompact ? 6 : 8),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? accentColor
-                          : accentColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(10),
+                      gradient: isSelected
+                          ? LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                accentColor,
+                                accentColor.withValues(alpha: 0.85),
+                              ],
+                            )
+                          : LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                accentColor
+                                    .withValues(alpha: isDark ? 0.22 : 0.14),
+                                accentColor
+                                    .withValues(alpha: isDark ? 0.10 : 0.06),
+                              ],
+                            ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? accentColor
+                            : accentColor
+                                .withValues(alpha: isDark ? 0.28 : 0.18),
+                      ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
                                 color: accentColor.withValues(alpha: 0.45),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
                               ),
                             ]
                           : null,
                     ),
                     child: Icon(
                       icon,
-                      size: isCompact ? 16 : 18,
+                      size: isCompact ? 16 : 19,
                       color: isSelected ? Colors.white : accentColor,
                     ),
                   ),
@@ -949,14 +1046,44 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         color: accentColor.withValues(
-                          alpha: isDark ? 0.3 : 0.15,
+                          alpha: isDark ? 0.28 : 0.14,
                         ),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: accentColor.withValues(alpha: 0.3),
+                          width: 0.8,
+                        ),
                       ),
                       child: Icon(
                         Icons.close_rounded,
                         size: isCompact ? 11 : 13,
                         color: accentColor,
+                      ),
+                    )
+                  else if (showLivePip)
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accentColor.withValues(alpha: 0.25),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: accentColor,
+                            boxShadow: [
+                              BoxShadow(
+                                color: accentColor.withValues(alpha: 0.6),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                 ],
@@ -968,28 +1095,29 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                 child: Text(
                   '$count',
                   style: GoogleFonts.outfit(
-                    fontSize: isCompact ? 22 : 26,
+                    fontSize: isCompact ? 24 : 28,
                     fontWeight: FontWeight.w800,
                     color: isSelected ? accentColor : textPrimary,
-                    letterSpacing: -0.5,
+                    letterSpacing: -0.6,
                   ),
                 ),
               ),
               const SizedBox(height: 2),
               SizedBox(
-                height: isCompact ? 28 : 20,
+                height: isCompact ? 26 : 22,
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: Text(
                     title,
                     maxLines: 2,
                     softWrap: true,
-                    style: GoogleFonts.inter(
-                      fontSize: isCompact ? 11 : 12.5,
+                    style: GoogleFonts.outfit(
+                      fontSize: isCompact ? 11.5 : 13,
                       fontWeight:
                           isSelected ? FontWeight.w800 : FontWeight.w700,
                       height: 1.15,
                       color: isSelected ? accentColor : textPrimary,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),
@@ -1001,7 +1129,7 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontSize: 10,
+                    fontSize: 10.5,
                     fontWeight:
                         isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected
@@ -1019,8 +1147,12 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
 
   Widget _buildModernSearchBar(
     BuildContext context,
-    List<StudentEvent> allEvents,
-  ) {
+    List<StudentEvent> allEvents, {
+    required FocusNode focusNode,
+    required OverlayPortalController dropdownCtrl,
+    required bool isFocused,
+    String? hintText,
+  }) {
     final isDark = AppColors.isDark(context);
     final border = AppColors.borderOf(context);
     final surface = AppColors.surfaceOf(context);
@@ -1036,19 +1168,19 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
         color: surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isSearchFocused
+          color: isFocused
               ? const Color(0xFF0284C7)
               : (isDark ? border : const Color(0xFFE2E8F0)),
-          width: _isSearchFocused ? 1.5 : 1.0,
+          width: isFocused ? 1.5 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: _isSearchFocused
+            color: isFocused
                 ? const Color(0xFF0284C7).withValues(alpha: 0.18)
                 : (isDark
                     ? Colors.black.withValues(alpha: 0.2)
                     : const Color(0xFF0F172A).withValues(alpha: 0.05)),
-            blurRadius: _isSearchFocused ? 14 : 8,
+            blurRadius: isFocused ? 14 : 8,
             offset: const Offset(0, 3),
           ),
         ],
@@ -1083,12 +1215,12 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
           Expanded(
             child: TextField(
               controller: _searchCtrl,
-              focusNode: _searchFocus,
+              focusNode: focusNode,
               onTap: () {
                 final query = _searchCtrl.text.trim().toLowerCase();
                 if (query.isNotEmpty && _hasAnyMatches(query, allEvents)) {
-                  if (!_searchDropdownCtrl.isShowing) {
-                    _searchDropdownCtrl.show();
+                  if (!dropdownCtrl.isShowing) {
+                    dropdownCtrl.show();
                   }
                 }
               },
@@ -1096,20 +1228,20 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                 setState(() => _searchQuery = v);
                 final query = v.trim().toLowerCase();
                 if (query.isNotEmpty && _hasAnyMatches(query, allEvents)) {
-                  if (!_searchDropdownCtrl.isShowing) {
-                    _searchDropdownCtrl.show();
+                  if (!dropdownCtrl.isShowing) {
+                    dropdownCtrl.show();
                   }
                 } else {
-                  if (_searchDropdownCtrl.isShowing) {
-                    _searchDropdownCtrl.hide();
+                  if (dropdownCtrl.isShowing) {
+                    dropdownCtrl.hide();
                   }
                 }
               },
               onSubmitted: (_) {
-                if (_searchDropdownCtrl.isShowing) {
-                  _searchDropdownCtrl.hide();
+                if (dropdownCtrl.isShowing) {
+                  dropdownCtrl.hide();
                 }
-                _searchFocus.unfocus();
+                focusNode.unfocus();
               },
               textAlignVertical: TextAlignVertical.center,
               style: GoogleFonts.inter(
@@ -1120,9 +1252,10 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
               ),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: isDesktop
-                    ? 'Search campus events, clubs, venues, or topics...'
-                    : 'Search events, clubs, venues...',
+                hintText: hintText ??
+                    (isDesktop
+                        ? 'Search campus events, clubs, venues, or topics...'
+                        : 'Search events, clubs, venues...'),
                 hintStyle: GoogleFonts.inter(
                   fontSize: 13,
                   height: 1.2,
@@ -1143,7 +1276,7 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
               child: InkWell(
                 onTap: () {
                   _searchCtrl.clear();
-                  _searchDropdownCtrl.hide();
+                  dropdownCtrl.hide();
                   setState(() => _searchQuery = '');
                 },
                 borderRadius: BorderRadius.circular(20),
@@ -1206,6 +1339,7 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
     required List<String> matchingEvents,
     required List<String> matchingOrgs,
     required List<String> matchingVenues,
+    String tapRegionGroupId = 'search_region',
   }) {
     final isDark = AppColors.isDark(context);
     final border = AppColors.borderOf(context);
@@ -1279,7 +1413,7 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
     }
 
     return TapRegion(
-      groupId: 'search_region',
+      groupId: tapRegionGroupId,
       child: Material(
         color: surface,
         elevation: 10,
@@ -1304,6 +1438,377 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySelectorSection(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 760;
+
+        final desktopCategoriesWidget = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          clipBehavior: Clip.none,
+          child: Row(
+            children: _categories.map((cat) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _buildCategoryItem(
+                  context,
+                  item: cat,
+                  isSelected: _selectedCategory == cat.id,
+                  onTap: () => setState(() => _selectedCategory = cat.id),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+
+        final badgesWidget = Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment:
+              isWide ? MainAxisAlignment.start : MainAxisAlignment.center,
+          children: [
+            _buildToggleFilter(
+              label: 'Duty Leave',
+              icon: Icons.verified_user_outlined,
+              isActive: _filterDutyLeaveOnly,
+              onTap: () => setState(
+                () => _filterDutyLeaveOnly = !_filterDutyLeaveOnly,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildToggleFilter(
+              label: 'Free Entry',
+              icon: Icons.payments_outlined,
+              isActive: _filterFreeOnly,
+              onTap: () => setState(
+                () => _filterFreeOnly = !_filterFreeOnly,
+              ),
+            ),
+          ],
+        );
+
+        if (isWide) {
+          return Row(
+            children: [
+              Expanded(child: desktopCategoriesWidget),
+              const SizedBox(width: 14),
+              badgesWidget,
+            ],
+          );
+        }
+
+        // Mobile / Small displays: Non-scrolling category picker + centered badges
+        return Column(
+          children: [
+            _buildMobileCategorySelector(context),
+            const SizedBox(height: 10),
+            Center(child: badgesWidget),
+          ],
+        );
+      },
+    );
+  }
+
+  // ── 3. Past Events Subview ─────────────────────────────────────────────
+
+  Widget _buildPastEventsView(
+    BuildContext context, {
+    required List<StudentEvent> allEvents,
+    required AsyncValue<List<StudentEvent>> eventsAsync,
+    required DateTime now,
+  }) {
+    if (eventsAsync.isLoading && !eventsAsync.hasValue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (eventsAsync.hasError && !eventsAsync.hasValue) {
+      return ErrorStateCard(
+        title: 'Unable to Load Past Events',
+        message: eventsAsync.error?.toString() ??
+            'Could not retrieve past events from the server.',
+        onRetry: () =>
+            ref.read(studentEventsProvider.notifier).loadEvents(),
+      );
+    }
+
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final textSecondary = AppColors.textSecondaryOf(context);
+    final border = AppColors.borderOf(context);
+    final surface = AppColors.surfaceOf(context);
+
+    // 1. Filter all past events: current time > end_time
+    final allPastEvents =
+        allEvents.where((e) => now.isAfter(e.endTime)).toList();
+
+    // 2. Filter by search query, category, duty leave, free entry
+    // 3. Order in descending order of end_time (most recent first)
+    final filteredPastEvents =
+        allPastEvents.where(_matchesNonStatusFilters).toList()
+          ..sort((a, b) => b.endTime.compareTo(a.endTime));
+
+    return Column(
+      children: [
+        // Connected subheader docked flush under top nav bar
+        _buildPastEventsArchiveSubheader(context),
+
+        // Scrollable past events content
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? 32 : 14,
+              vertical: 20,
+            ),
+            children: [
+              if (eventsAsync.hasError) ...[
+                InlineErrorBanner(
+                  message: eventsAsync.error?.toString() ??
+                      'Failed to refresh past events.',
+                  onRetry: () =>
+                      ref.read(studentEventsProvider.notifier).loadEvents(),
+                  margin: const EdgeInsets.only(bottom: 16),
+                ),
+              ],
+
+        // Modern Search Bar with Grouped Autocomplete Dropdown
+        TapRegion(
+          groupId: 'search_region_past',
+          onTapOutside: (_) {
+            if (_pastSearchDropdownCtrl.isShowing) {
+              _pastSearchDropdownCtrl.hide();
+            }
+            if (_pastSearchFocus.hasFocus) {
+              _pastSearchFocus.unfocus();
+            }
+          },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              _pastSearchBarWidth = constraints.maxWidth;
+              return CompositedTransformTarget(
+                link: _pastSearchLayerLink,
+                child: OverlayPortal(
+                  controller: _pastSearchDropdownCtrl,
+                  overlayChildBuilder: (context) {
+                    final query = _searchQuery.trim().toLowerCase();
+                    final matchingEvents =
+                        _getMatchingEvents(query, allPastEvents);
+                    final matchingOrgs =
+                        _getMatchingOrganisations(query, allPastEvents);
+                    final matchingVenues =
+                        _getMatchingVenues(query, allPastEvents);
+
+                    return CompositedTransformFollower(
+                      link: _pastSearchLayerLink,
+                      targetAnchor: Alignment.bottomLeft,
+                      offset: const Offset(0, 6),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: SizedBox(
+                          width: _pastSearchBarWidth,
+                          child: _buildSearchDropdown(
+                            context,
+                            matchingEvents: matchingEvents,
+                            matchingOrgs: matchingOrgs,
+                            matchingVenues: matchingVenues,
+                            tapRegionGroupId: 'search_region_past',
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: _buildModernSearchBar(
+                    context,
+                    allPastEvents,
+                    focusNode: _pastSearchFocus,
+                    dropdownCtrl: _pastSearchDropdownCtrl,
+                    isFocused: _isPastSearchFocused,
+                    hintText: isDesktop
+                        ? 'Search past events, conclaves, or venues...'
+                        : 'Search past events, clubs, venues...',
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Category Selector & Quick Filters
+        _buildCategorySelectorSection(context),
+
+        const SizedBox(height: 20),
+
+        // Concluded Events Listing
+        if (filteredPastEvents.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: border),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.history_toggle_off_rounded,
+                    size: 44,
+                    color: textSecondary,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'No past events found matching your criteria',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Try changing your search terms or clearing '
+                    'the active filters.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() {
+                        _searchQuery = '';
+                        _selectedCategory = 'All';
+                        _filterDutyLeaveOnly = false;
+                        _filterFreeOnly = false;
+                      });
+                    },
+                    child: const Text('Reset All Filters'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 750;
+              if (isWide) {
+                final leftColumn = <Widget>[];
+                final rightColumn = <Widget>[];
+
+                for (var i = 0; i < filteredPastEvents.length; i++) {
+                  final card = Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: EventCard(event: filteredPastEvents[i]),
+                  );
+                  if (i.isEven) {
+                    leftColumn.add(card);
+                  } else {
+                    rightColumn.add(card);
+                  }
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: Column(children: leftColumn)),
+                    const SizedBox(width: 16),
+                    Expanded(child: Column(children: rightColumn)),
+                  ],
+                );
+              } else {
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: filteredPastEvents.length,
+                  separatorBuilder: (context, _) => const SizedBox(height: 14),
+                  itemBuilder: (context, index) {
+                    return EventCard(event: filteredPastEvents[index]);
+                  },
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    ),
+  ],
+);
+}
+
+  Widget _buildPastEventsArchiveSubheader(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final textSecondary = AppColors.textSecondaryOf(context);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 32 : 16,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1E1B4B).withValues(alpha: 0.28)
+            : const Color(0xFFFAF5FF),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark
+                ? const Color(0xFF8B5CF6).withValues(alpha: 0.2)
+                : const Color(0xFFEDE9FE),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.25),
+              ),
+            ),
+            child: const Icon(
+              Icons.history_rounded,
+              size: 15,
+              color: Color(0xFF8B5CF6),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Past Events Archive',
+            style: GoogleFonts.outfit(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: textPrimary,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '• Concluded campus conclaves, hackathons, and workshops '
+              'ordered by end date',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: textSecondary,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1886,11 +2391,38 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
 
   // ── 2. My Passes & Registrations Subview ───────────────────────────────────
 
+  bool _isPastPass(StudentRegistration reg, DateTime now) {
+    if (reg.event != null) {
+      return now.isAfter(reg.event!.endTime);
+    }
+    return reg.isUsed || reg.isSingleUseExpired;
+  }
+
+  bool _matchesPassSearch(StudentRegistration reg, String query) {
+    if (query.isEmpty) {
+      return true;
+    }
+    final q = query.trim().toLowerCase();
+    final title = reg.event?.title.toLowerCase() ?? '';
+    final venue = reg.event?.venue.toLowerCase() ?? '';
+    final org = reg.event?.primaryOrgName.toLowerCase() ?? '';
+    final token = (reg.qrPayload ?? '').toLowerCase();
+    final secretCode = (reg.secretCode ?? '').toLowerCase();
+    final tags = reg.event?.tags.map((t) => t.toLowerCase()).join(' ') ?? '';
+    return title.contains(q) ||
+        venue.contains(q) ||
+        org.contains(q) ||
+        token.contains(q) ||
+        secretCode.contains(q) ||
+        tags.contains(q);
+  }
+
   Widget _buildMyPassesView(
     BuildContext context,
     List<StudentRegistration> regs,
-    AsyncValue<List<StudentRegistration>> regsAsync,
-  ) {
+    AsyncValue<List<StudentRegistration>> regsAsync, {
+    required DateTime now,
+  }) {
     if (regsAsync.isLoading && !regsAsync.hasValue) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1907,12 +2439,476 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
 
     final isDark = AppColors.isDark(context);
     final isDesktop = ResponsiveLayout.isDesktop(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isNarrow = screenWidth < 520;
+    final border = AppColors.borderOf(context);
     final surface = AppColors.surfaceOf(context);
+
+    // Separate into upcoming and past
+    final allUpcoming = regs.where((r) => !_isPastPass(r, now)).toList()
+      ..sort((a, b) {
+        final aTime = a.event?.startTime ?? a.createdAt;
+        final bTime = b.event?.startTime ?? b.createdAt;
+        return aTime.compareTo(bTime);
+      });
+
+    final allPast = regs.where((r) => _isPastPass(r, now)).toList()
+      ..sort((a, b) {
+        final aTime = a.event?.endTime ?? a.createdAt;
+        final bTime = b.event?.endTime ?? b.createdAt;
+        return bTime.compareTo(aTime);
+      });
+
+    final filteredUpcoming = allUpcoming
+        .where((r) => _matchesPassSearch(r, _passesSearchQuery))
+        .toList();
+    final filteredPast = allPast
+        .where((r) => _matchesPassSearch(r, _passesSearchQuery))
+        .toList();
+
+    return Column(
+      children: [
+        // Top Passes Header: Search Bar & Segmented Pill Switcher
+        Container(
+          padding: EdgeInsets.fromLTRB(
+            isDesktop ? 32 : 14,
+            16,
+            isDesktop ? 32 : 14,
+            12,
+          ),
+          decoration: BoxDecoration(
+            color: surface,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? border : const Color(0xFFE2E8F0),
+              ),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Search Bar (same styling as other pages, no category/chips)
+              _buildPassesSearchBar(context),
+              const SizedBox(height: 12),
+              // Segmented Switcher Pill Bar (Upcoming Passes vs Past Passes)
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPassesSubTabButton(
+                      context,
+                      index: 0,
+                      label: isNarrow ? 'Upcoming' : 'Upcoming Passes',
+                      fullLabel: 'Upcoming Passes',
+                      count: filteredUpcoming.length,
+                      icon: Icons.confirmation_number_outlined,
+                      activeColor: const Color(0xFF16A34A),
+                      isCompact: !isDesktop,
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 12 : 8),
+                  Expanded(
+                    child: _buildPassesSubTabButton(
+                      context,
+                      index: 1,
+                      label: isNarrow ? 'Past' : 'Past Passes',
+                      fullLabel: 'Past Passes',
+                      count: filteredPast.length,
+                      icon: Icons.history_rounded,
+                      activeColor: const Color(0xFF64748B),
+                      isCompact: !isDesktop,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // TabBarView for Swipe and Bar Layout
+        Expanded(
+          child: TabBarView(
+            controller: _passesTabCtrl,
+            children: [
+              _buildPassesListTab(
+                context,
+                passes: filteredUpcoming,
+                isPast: false,
+                totalCount: allUpcoming.length,
+                regsAsync: regsAsync,
+                hasSearch: _passesSearchQuery.isNotEmpty,
+              ),
+              _buildPassesListTab(
+                context,
+                passes: filteredPast,
+                isPast: true,
+                totalCount: allPast.length,
+                regsAsync: regsAsync,
+                hasSearch: _passesSearchQuery.isNotEmpty,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPassesSearchBar(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final border = AppColors.borderOf(context);
+    final surface = AppColors.surfaceOf(context);
+    final textSecondary = AppColors.textSecondaryOf(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isPassesSearchFocused
+              ? const Color(0xFF16A34A)
+              : (isDark ? border : const Color(0xFFE2E8F0)),
+          width: _isPassesSearchFocused ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _isPassesSearchFocused
+                ? const Color(0xFF16A34A).withValues(alpha: 0.18)
+                : (isDark
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : const Color(0xFF0F172A).withValues(alpha: 0.05)),
+            blurRadius: _isPassesSearchFocused ? 14 : 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(11),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.35),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.search_rounded,
+              size: 19,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _passesSearchCtrl,
+              focusNode: _passesSearchFocus,
+              onChanged: (v) {
+                setState(() => _passesSearchQuery = v);
+              },
+              onSubmitted: (_) {
+                _passesSearchFocus.unfocus();
+              },
+              textAlignVertical: TextAlignVertical.center,
+              style: GoogleFonts.inter(
+                fontSize: 13.5,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
+                color: textPrimary,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: isDesktop
+                    ? 'Search passes by event title, venue, or token...'
+                    : 'Search passes by event, venue, token...',
+                hintStyle: GoogleFonts.inter(
+                  fontSize: 13,
+                  height: 1.2,
+                  color: textSecondary,
+                  fontWeight: FontWeight.w400,
+                ),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+          if (_passesSearchQuery.isNotEmpty)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  _passesSearchCtrl.clear();
+                  setState(() => _passesSearchQuery = '');
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    Icons.cancel_rounded,
+                    size: 18,
+                    color: textSecondary,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPassesSubTabButton(
+    BuildContext context, {
+    required int index,
+    required String label,
+    required String fullLabel,
+    required int count,
+    required IconData icon,
+    required Color activeColor,
+    bool isCompact = false,
+  }) {
+    final isSelected = _passesTabCtrl.index == index;
+    final isDark = AppColors.isDark(context);
+    final border = AppColors.borderOf(context);
+    final textSecondary = AppColors.textSecondaryOf(context);
+
+    return Tooltip(
+      message: fullLabel,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _passesTabCtrl.animateTo(index);
+            setState(() {});
+          },
+          borderRadius: BorderRadius.circular(12),
+          hoverColor: activeColor.withValues(alpha: 0.06),
+          splashColor: activeColor.withValues(alpha: 0.12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 8 : 14,
+              vertical: 9,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? (isDark
+                      ? activeColor.withValues(alpha: 0.16)
+                      : activeColor.withValues(alpha: 0.08))
+                  : (isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC)),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? activeColor : border,
+                width: isSelected ? 1.5 : 1.0,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: isCompact ? 14 : 16,
+                  color: isSelected ? activeColor : textSecondary,
+                ),
+                SizedBox(width: isCompact ? 6 : 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      style: GoogleFonts.outfit(
+                        fontSize: isCompact ? 12 : 13.5,
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w600,
+                        color: isSelected
+                            ? (isDark ? Colors.white : activeColor)
+                            : textSecondary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? activeColor.withValues(alpha: 0.15)
+                        : (isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? activeColor : textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPassesListTab(
+    BuildContext context, {
+    required List<StudentRegistration> passes,
+    required bool isPast,
+    required int totalCount,
+    required AsyncValue<List<StudentRegistration>> regsAsync,
+    required bool hasSearch,
+  }) {
+    final isDesktop = ResponsiveLayout.isDesktop(context);
     final textPrimary = AppColors.textPrimaryOf(context);
     final textSecondary = AppColors.textSecondaryOf(context);
-    final border = AppColors.borderOf(context);
 
-    if (regs.isEmpty) {
+    if (regsAsync.isLoading && !regsAsync.hasValue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (passes.isEmpty) {
+      if (hasSearch) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.search_off_rounded,
+                  size: 48,
+                  color: textSecondary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No passes matching "$_passesSearchQuery"',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Try searching by another event title, venue, or token.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    _passesSearchCtrl.clear();
+                    setState(() => _passesSearchQuery = '');
+                  },
+                  icon: const Icon(Icons.clear_rounded, size: 16),
+                  label: const Text('Clear Search'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      if (!isPast) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.confirmation_number_outlined,
+                    size: 48,
+                    color: Color(0xFF16A34A),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'No Upcoming Passes',
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: Text(
+                    'Browse upcoming campus hackathons, conclaves, and '
+                    'workshops to claim verified entry passes.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                ElevatedButton.icon(
+                  onPressed: () => _tabCtrl.animateTo(0),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0369A1),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.explore_rounded, size: 18),
+                  label: Text(
+                    'Explore Campus Events',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -1922,18 +2918,18 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0369A1).withValues(alpha: 0.1),
+                  color: const Color(0xFF64748B).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.confirmation_number_outlined,
+                  Icons.history_rounded,
                   size: 48,
-                  color: Color(0xFF0284C7),
+                  color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 18),
               Text(
-                'No Event Passes Yet',
+                'No Past Passes Yet',
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -1944,36 +2940,13 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 380),
                 child: Text(
-                  'Browse upcoming campus hackathons, conclaves, and workshops '
-                  'to claim verified entry passes and earn KTU activity '
-                  'points.',
+                  'Concluded and used event passes will be archived here '
+                  'for your records.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: textSecondary,
                     height: 1.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 22),
-              ElevatedButton.icon(
-                onPressed: () => _tabCtrl.animateTo(0),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0369A1),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: const Icon(Icons.explore_rounded, size: 18),
-                label: Text(
-                  'Explore Campus Events',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -1984,15 +2957,15 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
     }
 
     final hasError = regsAsync.hasError;
-    final totalCount = regs.length + (hasError ? 1 : 0);
+    final totalItems = passes.length + (hasError ? 1 : 0);
 
     return ListView.separated(
       padding: EdgeInsets.symmetric(
         horizontal: isDesktop ? 32 : 18,
-        vertical: 24,
+        vertical: 20,
       ),
-      itemCount: totalCount,
-      separatorBuilder: (context, _) => const SizedBox(height: 16),
+      itemCount: totalItems,
+      separatorBuilder: (context, _) => const SizedBox(height: 14),
       itemBuilder: (context, index) {
         if (hasError && index == 0) {
           return InlineErrorBanner(
@@ -2003,247 +2976,283 @@ class _StudentEventsTabState extends ConsumerState<StudentEventsTab>
                 .loadRegistrations(),
           );
         }
-        final reg = regs[hasError ? index - 1 : index];
-        final event = reg.event;
-        final hasPoster =
-            event?.posterUrl != null && event!.posterUrl!.isNotEmpty;
-
-        return Card(
-          elevation: 0,
-          color: surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(
-              color: reg.isActive
-                  ? const Color(0xFF16A34A).withValues(alpha: 0.45)
-                  : border,
-              width: reg.isActive ? 1.5 : 1.0,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => QrPassDialog.show(context, reg),
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Pass QR Thumbnail or Poster Thumbnail
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: hasPoster
-                        ? Image.network(
-                            event.posterUrl!,
-                            width: 72,
-                            height: 72,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildQrIconBox(reg, isDark),
-                          )
-                        : _buildQrIconBox(reg, isDark),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // Details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2.5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: reg.isActive
-                                    ? const Color(0xFF16A34A)
-                                        .withValues(alpha: 0.12)
-                                    : border,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                reg.status.toUpperCase(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.6,
-                                  color: reg.isActive
-                                      ? const Color(0xFF16A34A)
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: () {
-                                unawaited(
-                                  Clipboard.setData(
-                                    ClipboardData(text: reg.qrPayload),
-                                  ),
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Token copied to clipboard'),
-                                  ),
-                                );
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    reg.qrPayload,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontFamily: 'monospace',
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.copy_rounded,
-                                    size: 11,
-                                    color: Colors.grey,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          event?.title ?? 'Campus Entry Pass',
-                          style: GoogleFonts.outfit(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: textPrimary,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 13,
-                              color: textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                event?.venue ?? 'Campus Venue',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: textSecondary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (event != null) ...[
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.schedule_rounded,
-                                size: 13,
-                                color: textSecondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_formatDate(event.startTime)} • '
-                                '${_formatTime(event.startTime)}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (event != null &&
-                            event.ktuActivityPoints > 0) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8B5CF6)
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '+${event.ktuActivityPoints} KTU Points '
-                              'on Gate Scan',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF8B5CF6),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Open QR Pass Button
-                  ElevatedButton.icon(
-                    onPressed: () => QrPassDialog.show(context, reg),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0369A1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.qr_code_rounded, size: 16),
-                    label: Text(
-                      'Pass',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
+        final reg = passes[hasError ? index - 1 : index];
+        return _buildPassCard(context, reg, isPast: isPast);
       },
     );
   }
 
-  Widget _buildQrIconBox(StudentRegistration reg, bool isDark) {
+  Widget _buildPassCard(
+    BuildContext context,
+    StudentRegistration reg, {
+    required bool isPast,
+  }) {
+    final isDark = AppColors.isDark(context);
+    final border = AppColors.borderOf(context);
+    final surface = AppColors.surfaceOf(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final textSecondary = AppColors.textSecondaryOf(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 560;
+    final event = reg.event;
+    final hasPoster =
+        event?.posterUrl != null && event!.posterUrl!.isNotEmpty;
+
+    final isExpiredUsed = reg.isSingleUseExpired;
+    final isConfirmed = reg.isActive && !isPast && !isExpiredUsed;
+    final statusText = isExpiredUsed
+        ? 'EXPIRED - USED'
+        : (isPast
+            ? (reg.isUsed
+                ? 'USED'
+                : (reg.status == 'cancelled' ? 'CANCELLED' : 'CONCLUDED'))
+            : reg.status.toUpperCase());
+
+    final statusColor = isExpiredUsed
+        ? const Color(0xFFEF4444)
+        : (isPast
+            ? (reg.isUsed
+                ? const Color(0xFF0284C7)
+                : (reg.status == 'cancelled'
+                    ? const Color(0xFFEF4444)
+                    : const Color(0xFF64748B)))
+            : (isConfirmed
+                ? const Color(0xFF16A34A)
+                : const Color(0xFFF59E0B)));
+
+    final passButton = ElevatedButton.icon(
+      onPressed: () => QrPassDialog.show(context, reg),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isExpiredUsed
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF0369A1),
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 11 : 12,
+          vertical: isCompact ? 8 : 10,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      icon: Icon(
+        isExpiredUsed ? Icons.block_rounded : Icons.qr_code_rounded,
+        size: 16,
+      ),
+      label: Text(
+        isExpiredUsed ? 'Expired' : 'Pass',
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+
+    final detailsColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Status badge
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 2.5,
+          ),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(6),
+            border: isExpiredUsed
+                ? Border.all(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.35),
+                  )
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isExpiredUsed) ...[
+                const Icon(
+                  Icons.do_not_disturb_on_rounded,
+                  size: 11,
+                  color: Color(0xFFEF4444),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                statusText,
+                style: GoogleFonts.inter(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Title (no truncation)
+        Text(
+          event?.title ?? 'Campus Entry Pass',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: textPrimary,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 4),
+        // Venue (no truncation)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.location_on_outlined,
+                size: 13,
+                color: textSecondary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                event?.venue ?? 'Campus Venue',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (event != null) ...[
+          const SizedBox(height: 3),
+          // Date & Time (no truncation)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.schedule_rounded,
+                  size: 13,
+                  color: textSecondary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${_formatDate(event.startTime)} • '
+                  '${_formatTime(event.startTime)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: textSecondary,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (isCompact) ...[
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: passButton,
+          ),
+        ],
+      ],
+    );
+
+    final thumbnailSize = isCompact ? 64.0 : 72.0;
+
+    return Card(
+      elevation: 0,
+      color: surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isExpiredUsed
+              ? const Color(0xFFEF4444).withValues(alpha: 0.55)
+              : (isConfirmed
+                  ? const Color(0xFF16A34A).withValues(alpha: 0.45)
+                  : border),
+          width: (isExpiredUsed || isConfirmed) ? 1.5 : 1.0,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => QrPassDialog.show(context, reg),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: EdgeInsets.all(isCompact ? 14 : 18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Pass QR Thumbnail or Poster Thumbnail
+              ClipRRect(
+                borderRadius: BorderRadius.circular(isCompact ? 12 : 14),
+                child: hasPoster
+                    ? Image.network(
+                        event.posterUrl!,
+                        width: thumbnailSize,
+                        height: thumbnailSize,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildQrIconBox(reg, isDark, size: thumbnailSize),
+                      )
+                    : _buildQrIconBox(reg, isDark, size: thumbnailSize),
+              ),
+
+              SizedBox(width: isCompact ? 12 : 16),
+
+              // Details
+              Expanded(
+                child: detailsColumn,
+              ),
+
+              if (!isCompact) ...[
+                const SizedBox(width: 12),
+                passButton,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQrIconBox(
+    StudentRegistration reg,
+    bool isDark, {
+    double size = 72,
+  }) {
+    final isExpiredUsed = reg.isSingleUseExpired;
     return Container(
-      width: 72,
-      height: 72,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: reg.isActive
-            ? const Color(0xFF16A34A).withValues(alpha: 0.12)
-            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-        borderRadius: BorderRadius.circular(14),
+        color: isExpiredUsed
+            ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+            : (reg.isActive
+                ? const Color(0xFF16A34A).withValues(alpha: 0.12)
+                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))),
+        borderRadius: BorderRadius.circular(size == 72 ? 14 : 12),
+        border: isExpiredUsed
+            ? Border.all(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.35),
+              )
+            : null,
       ),
       child: Icon(
-        Icons.qr_code_rounded,
-        color: reg.isActive ? const Color(0xFF16A34A) : Colors.grey,
-        size: 34,
+        isExpiredUsed
+            ? Icons.do_not_disturb_on_rounded
+            : Icons.qr_code_rounded,
+        color: isExpiredUsed
+            ? const Color(0xFFEF4444)
+            : (reg.isActive ? const Color(0xFF16A34A) : Colors.grey),
+        size: size == 72 ? 34 : 28,
       ),
     );
   }

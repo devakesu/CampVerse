@@ -367,6 +367,7 @@ class StudentService {
   }) async {
     try {
       final randomPassId = _generateQrToken(studentId, eventId);
+      final secretCode = _generateSecretCode();
 
       final inserted = await _client
           .from('event_registrations')
@@ -374,6 +375,7 @@ class StudentService {
             'event_id': eventId,
             'user_id': studentId,
             'qr_payload': randomPassId,
+            'secret_code': secretCode,
             'status': 'confirmed',
           })
           .select('*, events(*, organizations(*))')
@@ -540,5 +542,18 @@ class StudentService {
     ).join();
     final epoch = DateTime.now().millisecondsSinceEpoch % 10000;
     return 'CAMP-PASS-$epoch-$randomSuffix';
+  }
+
+  String _generateSecretCode() {
+    final rand = Random();
+    const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const digits = '0123456789';
+    final l1 = letters[rand.nextInt(letters.length)];
+    final l2 = letters[rand.nextInt(letters.length)];
+    final numPart = List.generate(
+      6,
+      (_) => digits[rand.nextInt(digits.length)],
+    ).join();
+    return '$l1$l2$numPart';
   }
 }

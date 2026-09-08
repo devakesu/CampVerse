@@ -320,9 +320,15 @@ void main() {
 
       // Switch to Passes
       await tester.tap(find.text('My Passes'));
+      await tester.pumpAndSettle();
+      expect(find.text('CONFIRMED'), findsOneWidget);
+      // Pass code is NOT visible in the passes list
+      expect(find.text('CAMP-PASS-1234-TEST'), findsNothing);
+
+      // Open detailed pass popup
+      await tester.tap(find.text('Pass'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('CONFIRMED'), findsOneWidget);
       expect(find.text('CAMP-PASS-1234-TEST'), findsOneWidget);
     });
 
@@ -819,6 +825,495 @@ void main() {
 
       expect(find.text('1 hrs'), findsOneWidget);
     });
+  });
+
+  group('Student Events 3rd Tab (Past Events) Tests', () {
+    testWidgets(
+        'Renders 3rd tab for past events, sorts in desc of end_time, '
+        'and filters correctly', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final mixedEvents = [
+        StudentEvent(
+          id: 'event-older',
+          title: 'Older AI Conclave 2025',
+          venue: 'APJ Hall',
+          startTime: now.subtract(const Duration(days: 6)),
+          endTime: now.subtract(const Duration(days: 5)),
+          tags: const ['Tech'],
+          isDutyLeaveApproved: true,
+        ),
+        StudentEvent(
+          id: 'event-recent',
+          title: 'Recent Robotics Workshop',
+          venue: 'Robotics Lab',
+          startTime: now.subtract(const Duration(hours: 4)),
+          endTime: now.subtract(const Duration(hours: 1)),
+          tags: const ['Workshop'],
+          isPaid: true,
+        ),
+        StudentEvent(
+          id: 'event-future',
+          title: 'Future Mega Hackathon 2026',
+          venue: 'Auditorium Hall',
+          startTime: now.add(const Duration(days: 2)),
+          endTime: now.add(const Duration(days: 3)),
+          tags: const ['Hackathon'],
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeEventsNotifier(mixedEvents),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(mockRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 1. Verify 3 tabs are rendered on desktop
+      expect(find.text('Discover Events'), findsOneWidget);
+      expect(find.text('My Passes'), findsOneWidget);
+      expect(find.text('Past Events'), findsOneWidget);
+
+      // In Discover tab, Future event is visible
+      expect(find.text('Future Mega Hackathon 2026'), findsOneWidget);
+
+      // 2. Switch to 3rd tab: Past Events
+      await tester.tap(find.text('Past Events'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify Archive Subheader is docked and Concluded badge is removed
+      expect(find.text('Past Events Archive'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'\d+\s+Concluded')), findsNothing);
+
+      // Future event MUST NOT appear in Past Events
+      expect(find.text('Future Mega Hackathon 2026'), findsNothing);
+
+      // Past events are both visible
+      expect(find.text('Recent Robotics Workshop'), findsOneWidget);
+      expect(find.text('Older AI Conclave 2025'), findsOneWidget);
+
+      // 3. Verify ordering: Recent workshop (ended 1h ago) appears before
+      // older conclave (ended 5d ago)
+      final recentWorkshopTop =
+          tester.getTopLeft(find.text('Recent Robotics Workshop')).dy;
+      final olderConclaveTop =
+          tester.getTopLeft(find.text('Older AI Conclave 2025')).dy;
+      // In staggered grid or column, recent workshop is positioned first
+      expect(recentWorkshopTop, lessThanOrEqualTo(olderConclaveTop));
+
+      // 4. Test Search filter in Past Events tab
+      await tester.enterText(find.byType(TextField), 'Conclave');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Tap on suggestion in dropdown to select and close overlay
+      await tester.tap(find.text('Older AI Conclave 2025').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final pastTextField = tester.widget<TextField>(find.byType(TextField));
+      expect(pastTextField.controller?.text, 'Older AI Conclave 2025');
+      expect(
+        find.byWidgetPredicate(
+            (w) => w is Text && w.data == 'Older AI Conclave 2025'),
+        findsOneWidget,
+      );
+      expect(find.text('Recent Robotics Workshop'), findsNothing);
+
+      // Clear search
+      await tester.tap(find.byIcon(Icons.cancel_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('Recent Robotics Workshop'), findsOneWidget);
+
+      // 5. Test Quick Filter (Duty Leave) in Past Events tab
+      await tester.tap(find.text('Duty Leave').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Older Conclave had duty leave, Recent Workshop did not
+      expect(find.text('Older AI Conclave 2025'), findsOneWidget);
+      expect(find.text('Recent Robotics Workshop'), findsNothing);
+
+      // Uncheck Duty Leave
+      await tester.tap(find.text('Duty Leave').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('Recent Robotics Workshop'), findsOneWidget);
+    });
+
+    testWidgets('Adapts tab labels across screen sizes (< 520px vs >= 520px)',
+        (tester) async {
+      // 1. Mobile Screen (< 520px)
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeEventsNotifier(mockEvents),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(mockRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // On narrow screen, compact tab labels are used
+      expect(find.text('Discover'), findsOneWidget);
+      expect(find.text('Passes'), findsOneWidget);
+      expect(find.text('Past'), findsOneWidget);
+
+      // Tap 'Past' tab on mobile
+      await tester.tap(find.text('Past'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Past Events Archive'), findsOneWidget);
+    });
+  });
+
+  group('Student Passes Subtabs (Upcoming and Past) Tests', () {
+    testWidgets(
+        'Separates passes into Upcoming and Past with swipe layout and search',
+        (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final multiPassRegistrations = [
+        StudentRegistration(
+          id: 'reg-upcoming',
+          eventId: 'event-upcoming',
+          userId: 'test-student-id',
+          qrPayload: 'CAMP-PASS-UPCOMING',
+          status: 'confirmed',
+          createdAt: now.subtract(const Duration(days: 1)),
+          event: StudentEvent(
+            id: 'event-upcoming',
+            title: 'Upcoming Mega Hackathon',
+            venue: 'Main Auditorium',
+            startTime: now.add(const Duration(days: 2)),
+            endTime: now.add(const Duration(days: 3)),
+          ),
+        ),
+        StudentRegistration(
+          id: 'reg-past',
+          eventId: 'event-past',
+          userId: 'test-student-id',
+          qrPayload: 'CAMP-PASS-PAST-TOKEN',
+          status: 'used',
+          createdAt: now.subtract(const Duration(days: 10)),
+          event: StudentEvent(
+            id: 'event-past',
+            title: 'Past Robotics Summit',
+            venue: 'Seminar Hall B',
+            startTime: now.subtract(const Duration(days: 5)),
+            endTime: now.subtract(const Duration(days: 4)),
+          ),
+        ),
+        StudentRegistration(
+          id: 'reg-used-upcoming',
+          eventId: 'event-used-upcoming',
+          userId: 'test-student-id',
+          qrPayload: 'CAMP-PASS-USED-UPCOMING',
+          status: 'confirmed',
+          scanCount: 1,
+          createdAt: now.subtract(const Duration(days: 2)),
+          event: StudentEvent(
+            id: 'event-used-upcoming',
+            title: 'AI Symposium (Used Pass)',
+            venue: 'Lecture Hall 1',
+            startTime: now.add(const Duration(days: 1)),
+            endTime: now.add(const Duration(days: 2)),
+          ),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            studentEventsProvider.overrideWith(
+              (ref) => FakeEventsNotifier(mockEvents),
+            ),
+            studentRegistrationsProvider.overrideWith(
+              (ref) => FakeRegistrationsNotifier(multiPassRegistrations),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: StudentEventsTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 1. Switch to My Passes tab
+      await tester.tap(find.text('My Passes'));
+      await tester.pumpAndSettle();
+
+      // 2. Both subtabs exist
+      expect(find.text('Upcoming Passes'), findsOneWidget);
+      expect(find.text('Past Passes'), findsOneWidget);
+
+      // Default subtab is Upcoming Passes (both active & used-upcoming are here)
+      expect(find.text('Upcoming Mega Hackathon'), findsOneWidget);
+      expect(find.text('AI Symposium (Used Pass)'), findsOneWidget);
+      expect(find.text('EXPIRED - USED'), findsOneWidget);
+      expect(find.text('CAMP-PASS-UPCOMING'), findsNothing);
+      expect(find.text('Past Robotics Summit'), findsNothing);
+
+      // 3. Switch to Past Passes tab
+      await tester.tap(find.text('Past Passes'));
+      await tester.pumpAndSettle();
+
+      // In Past Passes, only concluded pass is shown
+      expect(find.text('Past Robotics Summit'), findsOneWidget);
+      expect(find.text('CAMP-PASS-PAST-TOKEN'), findsNothing);
+      expect(find.text('Upcoming Mega Hackathon'), findsNothing);
+      expect(find.text('AI Symposium (Used Pass)'), findsNothing);
+
+      // 4. Switch back to Upcoming Passes via tab button
+      await tester.tap(find.text('Upcoming Passes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Upcoming Mega Hackathon'), findsOneWidget);
+      expect(find.text('AI Symposium (Used Pass)'), findsOneWidget);
+      expect(find.text('Past Robotics Summit'), findsNothing);
+
+      // 5. Test horizontal swipe gesture with fling
+      await tester.fling(
+        find.text('Upcoming Mega Hackathon'),
+        const Offset(-500, 0),
+        1000,
+      );
+      await tester.pumpAndSettle();
+
+      // Swiped to Past Passes
+      expect(find.text('Past Robotics Summit'), findsOneWidget);
+
+      // Swipe back to Upcoming Passes
+      await tester.fling(
+        find.text('Past Robotics Summit'),
+        const Offset(500, 0),
+        1000,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Upcoming Mega Hackathon'), findsOneWidget);
+
+      // 5. Test search bar in passes
+      final passSearchField = find.byType(TextField);
+      expect(passSearchField, findsOneWidget);
+
+      await tester.enterText(passSearchField, 'Auditorium');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Upcoming Mega Hackathon'), findsOneWidget);
+
+      // Search non-matching term in Upcoming
+      await tester.enterText(passSearchField, 'NonExistentEvent');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Upcoming Mega Hackathon'), findsNothing);
+      expect(
+        find.text('No passes matching "NonExistentEvent"'),
+        findsOneWidget,
+      );
+
+      // Tap Clear Search button
+      await tester.tap(find.text('Clear Search'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Upcoming Mega Hackathon'), findsOneWidget);
+    });
+
+    testWidgets(
+      'Passes tab does not display KTU points and does not overflow on small screens with long tokens',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final now = DateTime.now();
+        final passRegistrations = [
+          StudentRegistration(
+            id: 'reg-long-token',
+            eventId: 'event-ktu',
+            userId: 'test-student-id',
+            qrPayload: 'CAMP-PASS-VERY-LONG-PAYLOAD-TOKEN-IDENTIFIER-123456789',
+            status: 'confirmed',
+            createdAt: now.subtract(const Duration(days: 1)),
+            event: StudentEvent(
+              id: 'event-ktu',
+              title: 'Super Long Engineering Hackathon with Many Words in Title',
+              venue: 'Main Campus Computer Science Block Auditorium Hall 3',
+              startTime: now.add(const Duration(days: 2)),
+              endTime: now.add(const Duration(days: 3)),
+              ktuActivityPoints: 50,
+            ),
+          ),
+        ];
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+              studentEventsProvider.overrideWith(
+                (ref) => FakeEventsNotifier(mockEvents),
+              ),
+              studentRegistrationsProvider.overrideWith(
+                (ref) => FakeRegistrationsNotifier(passRegistrations),
+              ),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(
+                body: StudentEventsTab(),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Switch to Passes tab (on 360px screen, label is 'Passes')
+        await tester.tap(find.text('Passes'));
+        await tester.pumpAndSettle();
+
+        // Check that no KTU activity points are rendered anywhere in the passes tab
+        expect(find.textContaining('KTU'), findsNothing);
+
+        // Verify pass card renders cleanly without any RenderFlex overflow
+        expect(tester.takeException(), isNull);
+        expect(find.text('CONFIRMED'), findsOneWidget);
+        expect(
+          find.text('Super Long Engineering Hackathon with Many Words in Title'),
+          findsOneWidget,
+        );
+
+        // Open QR pass dialog
+        await tester.tap(find.text('Pass'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // In QrPassDialog, verify no KTU elements and no exceptions
+        expect(find.textContaining('KTU'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'Pass card renders with full text on ultra-compact 320px screens without overflow or truncation',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final now = DateTime.now();
+        final passRegistrations = [
+          StudentRegistration(
+            id: 'reg-compact-screen',
+            eventId: 'event-compact',
+            userId: 'test-student-id',
+            qrPayload: 'CAMP-PASS-CODE-001',
+            status: 'confirmed',
+            createdAt: now.subtract(const Duration(days: 1)),
+            event: StudentEvent(
+              id: 'event-compact',
+              title: 'International Annual Engineering Summit & Expo 2026',
+              venue: 'Main Campus Computer Science Block Auditorium Hall 3',
+              startTime: now.add(const Duration(days: 2)),
+              endTime: now.add(const Duration(days: 3)),
+            ),
+          ),
+        ];
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+              studentEventsProvider.overrideWith(
+                (ref) => FakeEventsNotifier(mockEvents),
+              ),
+              studentRegistrationsProvider.overrideWith(
+                (ref) => FakeRegistrationsNotifier(passRegistrations),
+              ),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(
+                body: StudentEventsTab(initialSubTabIndex: 1),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+        expect(
+          find.text('International Annual Engineering Summit & Expo 2026'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Main Campus Computer Science Block Auditorium Hall 3'),
+          findsOneWidget,
+        );
+        expect(find.text('CAMP-PASS-CODE-001'), findsNothing);
+        expect(find.text('Pass'), findsOneWidget);
+
+        // Open pass dialog
+        await tester.tap(find.text('Pass'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+        expect(
+          find.text('International Annual Engineering Summit & Expo 2026'),
+          findsWidgets,
+        );
+        expect(find.text('CAMP-PASS-CODE-001'), findsOneWidget);
+      },
+    );
   });
 }
 

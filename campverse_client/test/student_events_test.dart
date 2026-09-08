@@ -4,6 +4,7 @@ import 'package:campverse/features/student/models/student_event.dart';
 import 'package:campverse/features/student/models/student_registration.dart';
 import 'package:campverse/features/student/widgets/event_card.dart';
 import 'package:campverse/features/student/widgets/event_details_sheet.dart';
+import 'package:campverse/features/student/widgets/qr_pass_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -285,6 +286,96 @@ void main() {
       expect(reg.isActive, isTrue);
       expect(reg.event, isNotNull);
       expect(reg.event!.title, 'HackMEC 2026: 36-Hour Hackathon');
+    });
+
+    test(
+      'Parses optional QR payload, secret code, multi-scan, and checkpoints',
+      () {
+      final regJson = <String, dynamic>{
+        'id': 'reg-flexible-01',
+        'event_id': 'evt-sample-01',
+        'user_id': 'usr-01',
+        'qr_payload': null,
+        'secret_code': 'HM8821',
+        'is_single_scan': false,
+        'scan_count': 2,
+        'allowed_scan_types': ['entry', 'food', 'kit'],
+        'used_at': '2026-10-15T10:30:00.000Z',
+        'status': 'confirmed',
+        'created_at': '2026-09-01T12:00:00.000Z',
+      };
+
+      final reg = StudentRegistration.fromJson(regJson);
+      expect(reg.id, 'reg-flexible-01');
+      expect(reg.qrPayload, isNull);
+      expect(reg.hasQr, isFalse);
+      expect(reg.secretCode, 'HM8821');
+      expect(reg.hasSecretCode, isTrue);
+      expect(reg.displayCode, 'HM8821');
+      expect(reg.isSingleScan, isFalse);
+      expect(reg.scanCount, 2);
+      expect(reg.allowedScanTypes, ['entry', 'food', 'kit']);
+      expect(reg.usedAt, isNotNull);
+      expect(reg.scannedAt, equals(reg.usedAt));
+    });
+
+    test('Parses legacy scanned_at fallback if used_at is absent', () {
+      final regJson = <String, dynamic>{
+        'id': 'reg-legacy-01',
+        'event_id': 'evt-sample-01',
+        'user_id': 'usr-01',
+        'scanned_at': '2026-09-02T15:00:00.000Z',
+        'status': 'used',
+        'created_at': '2026-09-01T12:00:00.000Z',
+      };
+
+      final reg = StudentRegistration.fromJson(regJson);
+      expect(reg.usedAt, isNotNull);
+      expect(reg.scannedAt, equals(reg.usedAt));
+      expect(reg.isUsed, isTrue);
+    });
+
+    test('Calculates isSingleUseExpired and isActive properly', () {
+      // 1. Single scan with 0 scan count and not used -> NOT expired, is active
+      final activeSingle = StudentRegistration(
+        id: 'reg-active-single',
+        eventId: 'evt-1',
+        userId: 'u-1',
+        isSingleScan: true,
+        scanCount: 0,
+        status: 'confirmed',
+        createdAt: DateTime.now(),
+      );
+      expect(activeSingle.isSingleUseExpired, isFalse);
+      expect(activeSingle.isActive, isTrue);
+      expect(activeSingle.isExpired, isFalse);
+
+      // 2. Single scan with scanCount = 1 -> Expired, inactive
+      final expiredUsed = StudentRegistration(
+        id: 'reg-expired-single',
+        eventId: 'evt-1',
+        userId: 'u-1',
+        isSingleScan: true,
+        scanCount: 1,
+        status: 'confirmed',
+        createdAt: DateTime.now(),
+      );
+      expect(expiredUsed.isSingleUseExpired, isTrue);
+      expect(expiredUsed.isActive, isFalse);
+      expect(expiredUsed.isExpired, isTrue);
+
+      // 3. Multi scan with scanCount = 3 -> NOT single use expired, active
+      final multiUsed = StudentRegistration(
+        id: 'reg-multi-scan',
+        eventId: 'evt-1',
+        userId: 'u-1',
+        isSingleScan: false,
+        scanCount: 3,
+        status: 'confirmed',
+        createdAt: DateTime.now(),
+      );
+      expect(multiUsed.isSingleUseExpired, isFalse);
+      expect(multiUsed.isActive, isTrue);
     });
   });
 
@@ -782,6 +873,354 @@ void main() {
           scrollable: find.byType(Scrollable).last,
         );
         expect(find.byTooltip('Email Prof. Sharma'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'EventCard does not truncate short description or eligibility badge',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        const longDescription =
+            'This is a comprehensive and detailed short description designed '
+            'to verify that multi-line descriptions do not get truncated or '
+            'cut off with ellipses on any event card, rendering in full across '
+            'all tabs.';
+
+        final customEventJson = <String, dynamic>{
+          ...testEventJson,
+          'id': 'desc-elig-no-truncate-test',
+          'short_description': longDescription,
+          'eligibility': {
+            'is_open_to_all': false,
+            'allowed_programmes': ['CSE', 'ECE', 'EEE', 'ME'],
+            'allowed_semesters': [3, 4, 5, 6, 7, 8],
+            'allowed_sex': <String>[],
+          },
+        };
+
+        final event = StudentEvent.fromJson(customEventJson);
+        final eligibilitySummary = event.eligibility!.summaryText;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  child: EventCard(event: event),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        // Verify full short description text is present without truncation
+        final descFinder = find.text(longDescription);
+        expect(descFinder, findsOneWidget);
+        final descWidget = tester.widget<Text>(descFinder);
+        expect(descWidget.maxLines, isNull);
+        expect(descWidget.overflow, isNull);
+
+        // Verify full eligibility summary text is present without truncation
+        final eligFinder = find.text(eligibilitySummary);
+        expect(eligFinder, findsOneWidget);
+        final eligWidget = tester.widget<Text>(eligFinder);
+        expect(eligWidget.maxLines, isNull);
+        expect(eligWidget.overflow, isNull);
+      },
+    );
+  });
+
+  group('QrPassDialog Interchangeable Views & Metrics Widget Tests', () {
+    testWidgets(
+      'Renders QR by default, switches to Secret Code, and shows metrics',
+      (tester) async {
+        final now = DateTime.now();
+        final event = StudentEvent.fromJson(testEventJson);
+        final reg = StudentRegistration(
+          id: 'reg-interchangeable-01',
+          eventId: event.id,
+          userId: 'usr-01',
+          qrPayload: 'CAMP-PASS-TEST-99',
+          secretCode: 'CV9912',
+          isSingleScan: false,
+          scanCount: 1,
+          allowedScanTypes: const ['entry', 'food'],
+          usedAt: now.subtract(const Duration(minutes: 30)),
+          status: 'confirmed',
+          createdAt: now.subtract(const Duration(days: 1)),
+          event: event,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: QrPassDialog(registration: reg),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+
+        // Segment switcher buttons must be present
+        expect(find.text('QR Code Pass'), findsOneWidget);
+        expect(find.text('Secret Code'), findsOneWidget);
+
+        // QR payload is shown by default
+        expect(find.text('CAMP-PASS-TEST-99'), findsOneWidget);
+
+        // Metrics are visible
+        expect(find.text('CHECK-IN & USAGE METRICS'), findsOneWidget);
+        expect(find.text('Usage Type'), findsOneWidget);
+        expect(find.text('Multiple usage'), findsOneWidget);
+        expect(find.text('1 Usage'), findsOneWidget);
+        expect(find.text('🎟️ Gate Entry'), findsOneWidget);
+        expect(find.text('🍱 Food & Meals'), findsOneWidget);
+
+        // Tap the Secret Code segment
+        await tester.tap(find.text('Secret Code'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+
+        // Secret code verification card is now active
+        expect(find.text('CLUB VERIFICATION CODE'), findsOneWidget);
+        expect(find.text('CV9912'), findsOneWidget);
+        expect(find.text('Copy Code'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Renders only Secret Code mode without switcher when QR is absent',
+      (tester) async {
+        final now = DateTime.now();
+        final event = StudentEvent.fromJson(testEventJson);
+        final reg = StudentRegistration(
+          id: 'reg-secret-only',
+          eventId: event.id,
+          userId: 'usr-01',
+          secretCode: 'HM7700',
+          allowedScanTypes: const ['entry', 'kit'],
+          status: 'confirmed',
+          createdAt: now.subtract(const Duration(days: 1)),
+          event: event,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: QrPassDialog(registration: reg),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+
+        // Segment switcher is not present
+        expect(find.text('QR Code Pass'), findsNothing);
+
+        // Directly renders Secret Code
+        expect(find.text('CLUB VERIFICATION CODE'), findsOneWidget);
+        expect(find.text('HM7700'), findsOneWidget);
+
+        // Single usage metric
+        expect(find.text('Usage Type'), findsOneWidget);
+        expect(find.text('Single usage'), findsOneWidget);
+        expect(find.text('0 Usages'), findsOneWidget);
+        expect(find.text('🎒 Swag Kit'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Renders QrPassDialog without text truncation on 320px devices',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final now = DateTime.now();
+        final event = StudentEvent(
+          id: 'long-event-id',
+          title: 'International Grand Finale: Full Stack Hackathon & Expo 2026',
+          venue: 'Main Campus Computer Science Block Auditorium Hall 3 Floor 2',
+          startTime: now.add(const Duration(days: 2)),
+          endTime: now.add(const Duration(days: 3)),
+        );
+        final reg = StudentRegistration(
+          id: 'reg-no-truncate',
+          eventId: event.id,
+          userId: 'usr-01',
+          qrPayload: 'CAMP-PASS-LONG-TOKEN-123456789-ALPHA-BETA',
+          secretCode: 'HM9999',
+          isSingleScan: false,
+          scanCount: 3,
+          allowedScanTypes: const ['entry', 'food', 'kit'],
+          status: 'confirmed',
+          createdAt: now.subtract(const Duration(days: 1)),
+          event: event,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: QrPassDialog(registration: reg),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+
+        // Full title and venue without truncation
+        expect(
+          find.text(
+            'International Grand Finale: Full Stack Hackathon & Expo 2026',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Main Campus Computer Science Block Auditorium Hall 3 Floor 2',
+          ),
+          findsOneWidget,
+        );
+
+        // Metrics rendered completely
+        expect(find.text('Usage Type'), findsOneWidget);
+        expect(find.text('Multiple usage'), findsOneWidget);
+        expect(find.text('3 Usages'), findsOneWidget);
+        expect(find.text('Used pass'), findsOneWidget);
+        expect(find.text('CHECK-IN & USAGE METRICS'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Renders single-use expired pass with red EXPIRED - USED badge, '
+      'alert banner, stamp, and blurred QR / code',
+      (tester) async {
+        tester.view.physicalSize = const Size(600, 1000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final now = DateTime.now();
+        final event = StudentEvent(
+          id: 'single-use-evt',
+          title: 'Campus Hackathon 2026',
+          venue: 'Seminar Hall',
+          startTime: now.add(const Duration(days: 1)),
+          endTime: now.add(const Duration(days: 2)),
+        );
+        final reg = StudentRegistration(
+          id: 'reg-single-expired',
+          eventId: event.id,
+          userId: 'usr-01',
+          qrPayload: 'CAMP-SINGLE-PASS-TOKEN',
+          secretCode: 'EX1234',
+          scanCount: 1,
+          usedAt: now.subtract(const Duration(hours: 2)),
+          status: 'confirmed',
+          createdAt: now.subtract(const Duration(days: 1)),
+          event: event,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith((ref) => _MockAuthNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: QrPassDialog(registration: reg),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+
+        // Header status badge says EXPIRED - USED
+        expect(find.text('EXPIRED - USED'), findsAtLeastNWidgets(1));
+
+        // Red alert banner
+        expect(
+          find.text(
+            'This single-use pass has already been used and is expired.',
+          ),
+          findsOneWidget,
+        );
+
+        // Redundant bottom card and helper texts are removed
+        expect(
+          find.text('Single-use pass redeemed • Cannot be scanned again'),
+          findsNothing,
+        );
+        expect(
+          find.text('Pass Redeemed • Cannot Be Reused'),
+          findsNothing,
+        );
+
+        // Metrics section
+        expect(find.text('Usage Type'), findsOneWidget);
+        expect(find.text('Single usage (Used)'), findsOneWidget);
+        expect(find.text('1 Used'), findsOneWidget);
+        expect(find.text('Limit reached'), findsOneWidget);
+
+        // Expired stamp is present
+        expect(find.byIcon(Icons.do_not_disturb_on_rounded), findsWidgets);
+
+        // Cancel registration button is hidden/omitted
+        expect(find.text('Surrender Pass'), findsNothing);
+
+        // Switch to Secret Code mode
+        await tester.tap(find.text('Secret Code'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('EXPIRED SECRET CODE'), findsOneWidget);
+        expect(
+          find.text(
+            'Maximum usage limit reached (1/1) • Code is now invalid',
+          ),
+          findsNothing,
+        );
+        expect(find.text('EX1234'), findsOneWidget);
       },
     );
   });

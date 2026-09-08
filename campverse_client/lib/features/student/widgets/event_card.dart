@@ -468,8 +468,6 @@ class _EventCardState extends ConsumerState<EventCard> {
                         color: textSecondary,
                         height: 1.4,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
 
@@ -598,7 +596,6 @@ class _EventCardState extends ConsumerState<EventCard> {
                         ),
                       if (event.eligibility != null)
                         Container(
-                          constraints: const BoxConstraints(maxWidth: 180),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 7,
                             vertical: 2.5,
@@ -611,8 +608,6 @@ class _EventCardState extends ConsumerState<EventCard> {
                           ),
                           child: Text(
                             event.eligibility!.summaryText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,

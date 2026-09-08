@@ -491,38 +491,14 @@ class StudentOverviewTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Text(
-                      'ACTIVE DIGITAL ENTRY PASS',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: Color(0xFF16A34A),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        reg.qrPayload,
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontFamily: 'monospace',
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF16A34A),
-                        ),
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'ACTIVE DIGITAL ENTRY PASS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: Color(0xFF16A34A),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -532,8 +508,6 @@ class StudentOverviewTab extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimaryOf(context),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
